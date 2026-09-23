@@ -33,7 +33,7 @@ Rematch or Close Ticket
 ### Player commands
 
 ```text
-/buckshot challenge @player difficulty:<easy|normal|hard|extreme>
+/buckshot challenge @player difficulty:<easy|normal|hard|extreme> amount:<envy currency>
 /buckshot cancel [player]
 /buckshot guide
 /buckshot rules

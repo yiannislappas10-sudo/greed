@@ -20,6 +20,13 @@ const command = new SlashCommandBuilder()
           .setDescription("The player you want to challenge.")
           .setRequired(true)
       )
+      .addIntegerOption(option =>
+        option
+          .setName("amount")
+          .setDescription("Wager per player from your Envy wallet.")
+          .setMinValue(1)
+          .setRequired(true)
+      )
       .addStringOption(option =>
         option
           .setName("difficulty")
