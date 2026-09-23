@@ -1723,6 +1723,20 @@ client.on("interactionCreate", async interaction => {
     if (interaction.isChatInputCommand()) {
       if (interaction.commandName !== "buckshot") return;
       const subcommand = interaction.options.getSubcommand();
+      const requiredPermission = {
+        restrict: PermissionFlagsBits.ManageGuild,
+        unrestrict: PermissionFlagsBits.ManageGuild,
+        active: PermissionFlagsBits.ManageGuild,
+        forceend: PermissionFlagsBits.ManageChannels,
+        reset: PermissionFlagsBits.ManageGuild,
+      }[subcommand];
+
+      if (requiredPermission && !interaction.memberPermissions?.has(requiredPermission)) {
+        return interaction.reply({
+          content: "You can see this command, but you do not have permission to use it.",
+          flags: MessageFlags.Ephemeral,
+        });
+      }
 
       if (subcommand === "guide" || subcommand === "rules") {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });

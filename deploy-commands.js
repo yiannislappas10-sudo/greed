@@ -4,7 +4,6 @@ const {
   REST,
   Routes,
   SlashCommandBuilder,
-  PermissionFlagsBits,
   ChannelType
 } = require("discord.js");
 
@@ -71,7 +70,7 @@ const command = new SlashCommandBuilder()
       .setName("leaderboard")
       .setDescription("View the Buckshot leaderboard.")
   )
-  .addSubcommand(sub => {
+  .addSubcommand(sub =>
     sub
       .setName("restrict")
       .setDescription("Restrict new Buckshot challenges to one channel.")
@@ -81,22 +80,19 @@ const command = new SlashCommandBuilder()
           .setDescription("The channel where challenge requests are allowed.")
           .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
           .setRequired(true)
-      );
-    return sub.setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild);
-  })
+      )
+  )
   .addSubcommand(sub =>
     sub
       .setName("unrestrict")
       .setDescription("Remove the Buckshot challenge channel restriction.")
-      .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
   )
   .addSubcommand(sub =>
     sub
       .setName("active")
       .setDescription("Show active Buckshot games on this server.")
-      .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
   )
-  .addSubcommand(sub => {
+  .addSubcommand(sub =>
     sub
       .setName("forceend")
       .setDescription("Force-end the Buckshot game in a ticket/channel.")
@@ -106,9 +102,8 @@ const command = new SlashCommandBuilder()
           .setDescription("The ticket channel. Defaults to this channel.")
           .addChannelTypes(ChannelType.GuildText)
           .setRequired(false)
-      );
-    return sub.setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels);
-  })
+      )
+  )
   .addSubcommand(sub =>
     sub
       .setName("reset")
@@ -119,7 +114,6 @@ const command = new SlashCommandBuilder()
           .setDescription("The player whose statistics should be reset.")
           .setRequired(true)
       )
-      .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
   );
 
 async function main() {
