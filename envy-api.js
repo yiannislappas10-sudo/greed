@@ -1,4 +1,4 @@
-const ENVY_API_URL = (process.env.ENVY_API_URL || "").replace(/\\/+$/, "");
+const ENVY_API_URL = (process.env.ENVY_API_URL || "").replace(/\/+$/, "");
 const ENVY_API_KEY = process.env.ENVY_API_KEY || "";
 
 function envyConfigured() {
