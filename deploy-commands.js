@@ -3,8 +3,7 @@ require("dotenv").config();
 const {
   REST,
   Routes,
-  SlashCommandBuilder,
-  PermissionFlagsBits
+  SlashCommandBuilder
 } = require("discord.js");
 
 const command = new SlashCommandBuilder()
@@ -13,18 +12,35 @@ const command = new SlashCommandBuilder()
   .addSubcommand(sub =>
     sub
       .setName("challenge")
-      .setDescription("Challenge another player to a game.")
+      .setDescription("Challenge another player to a Buckshot match.")
       .addUserOption(option =>
         option
           .setName("player")
           .setDescription("The player you want to challenge.")
           .setRequired(true)
       )
+      .addStringOption(option =>
+        option
+          .setName("difficulty")
+          .setDescription("Choose the match difficulty.")
+          .setRequired(true)
+          .addChoices(
+            { name: "Easy — 2 rounds", value: "easy" },
+            { name: "Normal — 4 rounds", value: "normal" },
+            { name: "Hard — 6 rounds", value: "hard" },
+            { name: "Extreme — 8 rounds", value: "extreme" }
+          )
+      )
+  )
+  .addSubcommand(sub =>
+    sub
+      .setName("guide")
+      .setDescription("Open the full Buckshot game guide.")
   )
   .addSubcommand(sub =>
     sub
       .setName("rules")
-      .setDescription("Show the game rules.")
+      .setDescription("Open the Buckshot game guide (legacy command).")
   );
 
 async function main() {
