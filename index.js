@@ -16,6 +16,7 @@ const {
 } = require("discord.js");
 
 const { Pool } = require("pg");
+const { envyConfigured, lockBuckshotWager, settleBuckshotWager, refundBuckshotWager } = require("./envy-api");
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
@@ -207,6 +208,7 @@ async function initDatabase() {
       target_id TEXT NOT NULL,
       difficulty TEXT NOT NULL,
       channel_id TEXT NOT NULL,
+      wager BIGINT NOT NULL DEFAULT 0,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
@@ -218,6 +220,9 @@ async function initDatabase() {
       challenger_id TEXT NOT NULL,
       target_id TEXT NOT NULL,
       difficulty TEXT NOT NULL,
+      wager BIGINT NOT NULL DEFAULT 0,
+      wager_id TEXT,
+      wager_status TEXT NOT NULL DEFAULT 'none',
       round INTEGER NOT NULL,
       turn_id TEXT,
       shells JSONB NOT NULL,
@@ -246,6 +251,12 @@ async function initDatabase() {
       items_used INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (guild_id, user_id)
     );
+  `);
+  await pool.query(`
+    ALTER TABLE buckshot_challenges ADD COLUMN IF NOT EXISTS wager BIGINT NOT NULL DEFAULT 0;
+    ALTER TABLE buckshot_games ADD COLUMN IF NOT EXISTS wager BIGINT NOT NULL DEFAULT 0;
+    ALTER TABLE buckshot_games ADD COLUMN IF NOT EXISTS wager_id TEXT;
+    ALTER TABLE buckshot_games ADD COLUMN IF NOT EXISTS wager_status TEXT NOT NULL DEFAULT 'none';
   `);
   dbReady = true;
 }
@@ -301,6 +312,9 @@ function hydrateGame(row) {
     challengerId: row.challenger_id,
     targetId: row.target_id,
     difficulty: row.difficulty,
+    wager: Number(row.wager || 0),
+    wagerId: row.wager_id || null,
+    wagerStatus: row.wager_status || 'none',
     round: row.round,
     turnId: row.turn_id,
     shells: rawShells || [],
@@ -323,10 +337,10 @@ async function saveGame(game) {
   await dbQuery(
     `INSERT INTO buckshot_games (
        game_id, guild_id, channel_id, message_id, challenger_id, target_id,
-       difficulty, round, turn_id, shells, players, skipped_turn, finished,
+       difficulty, wager, wager_id, wager_status, round, turn_id, shells, players, skipped_turn, finished,
        winner_id, sudden_death, round_started_at, last_action_at, end_reason,
        stats_recorded, updated_at
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,$12::jsonb,$13,$14,$15,$16,$17,$18,$19,NOW())
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14::jsonb,$15::jsonb,$16,$17,$18,$19,$20,$21,NOW())
      ON CONFLICT (game_id) DO UPDATE SET
        guild_id=EXCLUDED.guild_id,
        channel_id=EXCLUDED.channel_id,
@@ -334,6 +348,9 @@ async function saveGame(game) {
        challenger_id=EXCLUDED.challenger_id,
        target_id=EXCLUDED.target_id,
        difficulty=EXCLUDED.difficulty,
+       wager=EXCLUDED.wager,
+       wager_id=EXCLUDED.wager_id,
+       wager_status=EXCLUDED.wager_status,
        round=EXCLUDED.round,
        turn_id=EXCLUDED.turn_id,
        shells=EXCLUDED.shells,
@@ -355,6 +372,9 @@ async function saveGame(game) {
       game.challengerId,
       game.targetId,
       game.difficulty,
+      game.wager || 0,
+      game.wagerId || null,
+      game.wagerStatus || 'none',
       game.round,
       game.turnId,
       JSON.stringify(data.shells),
@@ -379,8 +399,8 @@ async function saveChallenge(challenge) {
   if (!dbReady) return;
   await dbQuery(
     `INSERT INTO buckshot_challenges
-       (challenge_id, guild_id, challenger_id, target_id, difficulty, channel_id, created_at)
-     VALUES ($1,$2,$3,$4,$5,$6,TO_TIMESTAMP($7 / 1000.0))
+       (challenge_id, guild_id, challenger_id, target_id, difficulty, channel_id, wager, created_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,TO_TIMESTAMP($8 / 1000.0))
      ON CONFLICT (challenge_id) DO UPDATE SET
        difficulty=EXCLUDED.difficulty,
        channel_id=EXCLUDED.channel_id,
@@ -392,6 +412,7 @@ async function saveChallenge(challenge) {
       challenge.targetId,
       challenge.difficulty,
       challenge.channelId,
+      challenge.wager,
       challenge.createdAt
     ]
   );
@@ -529,7 +550,7 @@ async function restoreState() {
 
   const now = Date.now();
   const challengeRows = await dbQuery(`
-    SELECT challenge_id, guild_id, challenger_id, target_id, difficulty, channel_id,
+    SELECT challenge_id, guild_id, challenger_id, target_id, difficulty, channel_id, wager,
            EXTRACT(EPOCH FROM created_at) * 1000 AS created_ms
     FROM buckshot_challenges
     WHERE created_at > NOW() - INTERVAL '3 minutes'
@@ -543,6 +564,7 @@ async function restoreState() {
       targetId: row.target_id,
       difficulty: row.difficulty,
       channelId: row.channel_id,
+      wager: Number(row.wager || 0),
       createdAt: Number(row.created_ms)
     };
     if (now - challenge.createdAt < CHALLENGE_TIMEOUT_MS) {
@@ -565,6 +587,26 @@ async function restoreState() {
   }
 
   console.log(`Restored ${challenges.size} challenge(s) and ${games.size} game(s) from PostgreSQL.`);
+
+  if (envyConfigured()) {
+    for (const game of games.values()) {
+      if (
+        game.finished &&
+        game.winnerId &&
+        game.wager &&
+        game.wagerId &&
+        game.wagerStatus !== "settled"
+      ) {
+        try {
+          await settleBuckshotWager(game.wagerId, game.winnerId);
+          game.wagerStatus = "settled";
+          await saveGame(game);
+        } catch (error) {
+          console.error("Pending Envy wager settlement still unavailable", game.wagerId, error);
+        }
+      }
+    }
+  }
 }
 
 function scheduleChallengeExpiry(challenge) {
@@ -700,6 +742,8 @@ function buildChallengePanel(challenge, state = "pending", ticketChannel = null)
         `**Difficulty:** ${difficulty.label}\n` +
         `**Rounds:** ${difficulty.rounds}\n` +
         `**Starting hearts:** ${STARTING_HP} each\n` +
+        `**Wager:** ${Number(challenge.wager || 0).toLocaleString()} per player\n` +
+        `**Pot:** ${(Number(challenge.wager || 0) * 2).toLocaleString()}\n` +
         `**Winner:** Not decided`
       ),
       new TextDisplayBuilder().setContent(status)
@@ -746,6 +790,7 @@ function buildGamePanel(game) {
         `**${userName(game, p1.id)}**\n${heartDisplay(p1)}\n\n` +
         `**${userName(game, p2.id)}**\n${heartDisplay(p2)}\n\n` +
         `**Chamber:** ${chamberText}\n` +
+        `**Wager:** ${Number(game.wager || 0).toLocaleString()} per player\n` +
         `${game.finished ? `**Result:** ${game.endReason || "Match complete"}` : turnCountdown(game)}`
       ),
       new TextDisplayBuilder().setContent(
@@ -831,7 +876,7 @@ function buildGuidePanels() {
       ),
       new TextDisplayBuilder().setContent(
         "## 2. Starting a challenge\n" +
-        "Use `/buckshot challenge @player difficulty:<difficulty>`. The request displays the Challenger, Opponent, Difficulty, number of Rounds, Starting Hearts and Winner status. Both players are pinged. The opponent has **Accept** and **Decline**. The challenger has **Cancel Request**. A pending request automatically expires after 2 minutes if it is not answered. You can also use `/buckshot cancel` to cancel your own pending request."
+        "Use `/buckshot challenge @player difficulty:<difficulty> amount:<currency>`. The request displays the Challenger, Opponent, Difficulty, number of Rounds, Starting Hearts and Winner status. Both players are pinged. The opponent has **Accept** and **Decline**. The challenger has **Cancel Request**. A pending request automatically expires after 2 minutes if it is not answered. You can also use `/buckshot cancel` to cancel your own pending request."
       ),
       new TextDisplayBuilder().setContent(
         "## 3. The private ticket\n" +
@@ -906,7 +951,7 @@ function buildGuidePanels() {
       ),
       new TextDisplayBuilder().setContent(
         "## 13. Useful commands\n" +
-        "`/buckshot challenge @player difficulty:<difficulty>` — challenge.\n" +
+        "`/buckshot challenge @player difficulty:<difficulty> amount:<currency>` — challenge.\n" +
         "`/buckshot cancel [player]` — cancel your pending request.\n" +
         "`/buckshot guide` — post this guide.\n" +
         "`/buckshot stats [player]` — view statistics.\n" +
@@ -935,7 +980,9 @@ function buildResultPanel(game) {
         `**Final health**\n` +
         `${userName(game, winner.id)} — ${heartDisplay(winner)}\n` +
         `${userName(game, loser.id)} — ${heartDisplay(loser)}\n\n` +
-        `**Difficulty:** ${difficultyFor(game).label}`
+        `**Difficulty:** ${difficultyFor(game).label}\n` +
+        `**Wager:** ${Number(game.wager || 0).toLocaleString()} per player\n` +
+        `**Pot:** ${(Number(game.wager || 0) * 2).toLocaleString()}`
       )
     )
     .addActionRowComponents(
@@ -1067,6 +1114,16 @@ async function endGame(game, winnerId, reason) {
   activeUsers.delete(game.challengerId);
   activeUsers.delete(game.targetId);
   clearTurnTimer(game.id);
+
+  if (game.wager && game.wagerStatus !== "settled" && game.wagerId) {
+    try {
+      await settleBuckshotWager(game.wagerId, winnerId);
+      game.wagerStatus = "settled";
+    } catch (error) {
+      game.wagerStatus = "pending_settlement";
+      console.error("Failed to settle Envy wager", game.wagerId, error);
+    }
+  }
 
   await saveGame(game);
   await recordGameResult(game);
@@ -1481,6 +1538,9 @@ async function createGameTicket(guild, challenge) {
     challengerId: challenge.challengerId,
     targetId: challenge.targetId,
     difficulty: challenge.difficulty,
+    wager: Number(challenge.wager || 0),
+    wagerId: challenge.id,
+    wagerStatus: 'locked',
     round: 1,
     turnId: Math.random() < 0.5 ? challenge.challengerId : challenge.targetId,
     shells: [],
@@ -1560,6 +1620,15 @@ async function createGameTicket(guild, challenge) {
 }
 
 async function startRematch(game, difficulty) {
+  const wagerId = game.id + ":rematch:" + Date.now().toString();
+  await lockBuckshotWager(
+    wagerId,
+    game.guildId,
+    game.challengerId,
+    game.targetId,
+    Number(game.wager || 0)
+  );
+
   clearTurnTimer(game.id);
   rematchRequests.delete(game.id);
 
@@ -1567,6 +1636,8 @@ async function startRematch(game, difficulty) {
     activeUsers.set(userId, game.id);
   }
 
+  game.wagerId = wagerId;
+  game.wagerStatus = "locked";
   game.difficulty = difficulty;
   game.round = 1;
   game.turnId = Math.random() < 0.5 ? game.challengerId : game.targetId;
@@ -1746,8 +1817,15 @@ client.on("interactionCreate", async interaction => {
 
         const target = interaction.options.getUser("player", true);
         const difficulty = interaction.options.getString("difficulty", true);
+        const amount = interaction.options.getInteger("amount", true);
         const challenger = interaction.user;
 
+        if (amount <= 0) {
+          return interaction.reply({ content: "The wager must be greater than 0.", flags: MessageFlags.Ephemeral });
+        }
+        if (!envyConfigured()) {
+          return interaction.reply({ content: "Money-backed Buckshot is not configured yet. Envy connection is required.", flags: MessageFlags.Ephemeral });
+        }
         if (!DIFFICULTIES[difficulty]) {
           return interaction.reply({ content: "That difficulty is not available.", flags: MessageFlags.Ephemeral });
         }
@@ -1772,6 +1850,7 @@ client.on("interactionCreate", async interaction => {
           targetId: target.id,
           difficulty,
           channelId: interaction.channelId,
+          wager: amount,
           createdAt: Date.now()
         };
 
@@ -1927,9 +2006,47 @@ client.on("interactionCreate", async interaction => {
           });
         }
 
+        if (!challenge.wager || challenge.wager <= 0) {
+          challenges.delete(challenge.id);
+          await deleteChallenge(challenge.id);
+          return interaction.update({
+            components: [buildChallengePanel(challenge, "cancelled")],
+            flags: MessageFlags.IsComponentsV2
+          });
+        }
+
+        try {
+          await lockBuckshotWager(
+            challenge.id,
+            challenge.guildId,
+            challenge.challengerId,
+            challenge.targetId,
+            Number(challenge.wager)
+          );
+        } catch (error) {
+          console.error("Buckshot wager lock failed", challenge.id, error);
+          return interaction.reply({
+            content: error.message || "The wager could not be locked from Envy.",
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
         challenges.delete(challenge.id);
         await deleteChallenge(challenge.id);
-        const { channel } = await createGameTicket(interaction.guild, challenge);
+
+        let channel;
+        try {
+          ({ channel } = await createGameTicket(interaction.guild, challenge));
+        } catch (error) {
+          console.error("Buckshot ticket creation failed after wager lock", challenge.id, error);
+          await refundBuckshotWager(challenge.id).catch(refundError =>
+            console.error("Failed to refund Buckshot wager", challenge.id, refundError)
+          );
+          return interaction.reply({
+            content: "The Buckshot ticket could not be created, so the wager was refunded.",
+            flags: MessageFlags.Ephemeral
+          });
+        }
 
         return interaction.update({
           components: [buildChallengePanel(challenge, "accepted", channel.toString())],
@@ -1997,8 +2114,16 @@ client.on("interactionCreate", async interaction => {
 
       if (actionName === "choose") {
         if (!DIFFICULTIES[value]) return interaction.reply({ content: "That difficulty is not available.", flags: MessageFlags.Ephemeral });
+        try {
+          await startRematch(game, value);
+        } catch (error) {
+          console.error("Buckshot rematch wager lock failed", game.id, error);
+          return interaction.reply({
+            content: error.message || "Both players need enough Envy wallet currency for the rematch.",
+            flags: MessageFlags.Ephemeral
+          });
+        }
         rematchRequests.delete(game.id);
-        await startRematch(game, value);
         await interaction.update({
           components: [buildGamePanel(game)],
           flags: MessageFlags.IsComponentsV2
