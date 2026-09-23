@@ -340,7 +340,7 @@ async function saveGame(game) {
        difficulty, wager, wager_id, wager_status, round, turn_id, shells, players, skipped_turn, finished,
        winner_id, sudden_death, round_started_at, last_action_at, end_reason,
        stats_recorded, updated_at
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14::jsonb,$15::jsonb,$16,$17,$18,$19,$20,$21,NOW())
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14::jsonb,$15::jsonb,$16,$17,$18,$19,$20,$21,$22,NOW())
      ON CONFLICT (game_id) DO UPDATE SET
        guild_id=EXCLUDED.guild_id,
        channel_id=EXCLUDED.channel_id,
