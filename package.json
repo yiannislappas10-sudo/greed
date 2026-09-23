@@ -1,8 +1,8 @@
 {
   "name": "buckshot-discord-bot",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Buckshot-style 2-player Discord game using Discord Components V2 and private ticket channels.",
+  "description": "Railway-ready 2-player Buckshot Discord bot using Components V2, private tickets and PostgreSQL persistence.",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "discord.js": "^14.26.2",
-    "dotenv": "^17.2.2"
+    "dotenv": "^17.2.2",
+    "pg": "^8.16.3"
   }
 }
