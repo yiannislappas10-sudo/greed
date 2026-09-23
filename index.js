@@ -111,6 +111,11 @@ const ITEM_INFO = {
   adrenaline: { label: "Adrenaline", symbol: "◇" }
 };
 
+function textDisplay(content) {
+  const safeContent = content === undefined || content === null ? "Unavailable" : String(content);
+  return textDisplay(safeContent);
+}
+
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -693,8 +698,8 @@ function buildChallengePanel(challenge, state = "pending", ticketChannel = null)
   const container = new ContainerBuilder()
     .setAccentColor(BLACK)
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(heading),
-      new TextDisplayBuilder().setContent(
+      textDisplay(heading),
+      textDisplay(
         `**Challenger:** <@${challenge.challengerId}>\n` +
         `**Opponent:** <@${challenge.targetId}>\n` +
         `**Difficulty:** ${difficulty.label}\n` +
@@ -703,7 +708,7 @@ function buildChallengePanel(challenge, state = "pending", ticketChannel = null)
         `**Winner:** Not decided`
       ),
       new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small),
-      new TextDisplayBuilder().setContent(status)
+      textDisplay(status)
     );
 
   if (state === "pending") {
@@ -738,15 +743,15 @@ function buildGamePanel(game) {
   const container = new ContainerBuilder()
     .setAccentColor(BLACK)
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`# BUCKSHOT\n**${difficulty.label}**  ·  **${roundLabel}**`),
-      new TextDisplayBuilder().setContent(
+      textDisplay(`# BUCKSHOT\n**${difficulty.label}**  ·  **${roundLabel}**`),
+      textDisplay(
         `${turnLine}\n\n` +
         `**${userName(game, p1.id)}**\n${heartDisplay(p1)}\n\n` +
         `**${userName(game, p2.id)}**\n${heartDisplay(p2)}\n\n` +
         `**Chamber:** ${chamberText}\n` +
         `${game.finished ? `**Result:** ${game.endReason || "Match complete"}` : turnCountdown(game)}`
       ),
-      new TextDisplayBuilder().setContent(
+      textDisplay(
         game.finished
           ? `**Final health**\n${userName(game, p1.id)}: ${p1.hp}/${p1.maxHp} hearts\n${userName(game, p2.id)}: ${p2.hp}/${p2.maxHp} hearts`
           : `**${userName(game, game.turnId)}'s items**\n${formatItems(game.players[game.turnId])}`
@@ -796,8 +801,8 @@ function buildRematchPanel(game) {
   return new ContainerBuilder()
     .setAccentColor(BLACK)
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent("# BUCKSHOT — REMATCH"),
-      new TextDisplayBuilder().setContent(
+      textDisplay("# BUCKSHOT — REMATCH"),
+      textDisplay(
         `Rematch requested by **${userName(game, game.rematchInitiatorId)}**.\nChoose the difficulty for the next match. This will restart the game in the current private ticket.\n\n` +
         `**Current players:** ${userName(game, game.challengerId)} vs ${userName(game, game.targetId)}`
       )
@@ -820,17 +825,17 @@ function buildGuidePanels() {
   const p1 = new ContainerBuilder()
     .setAccentColor(BLACK)
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent("# BUCKSHOT — GAME GUIDE • 1/4"),
-      new TextDisplayBuilder().setContent(
+      textDisplay("# BUCKSHOT — GAME GUIDE • 1/4"),
+      textDisplay(
         "## 1. The idea\n" +
         "Buckshot is a private, two-player, turn-based chamber game. One player challenges another. After the challenge is accepted, the bot creates a private ticket that only the two players and the bot can access. The entire game is controlled from the black Components V2 game panel. You do not type shooting or item commands during the match. The bot handles the hidden chamber, turns, hearts, items, rounds and win condition."
       ),
       new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small),
-      new TextDisplayBuilder().setContent(
+      textDisplay(
         "## 2. Starting a challenge\n" +
         "Use `/buckshot challenge @player difficulty:<difficulty>`. The request displays the Challenger, Opponent, Difficulty, number of Rounds, Starting Hearts and Winner status. Both players are pinged. The opponent has **Accept** and **Decline**. The challenger has **Cancel Request**. A pending request automatically expires after 2 minutes if it is not answered. You can also use `/buckshot cancel` to cancel your own pending request."
       ),
-      new TextDisplayBuilder().setContent(
+      textDisplay(
         "## 3. The private ticket\n" +
         "Accepting the challenge creates a private text channel under `Buckshot Tickets`. The two players can see and use it; the bot can manage it; everybody else is denied View Channel. The game starts immediately. Staff can close a ticket when necessary, and the bot has recovery commands for stuck games."
       )
@@ -839,17 +844,17 @@ function buildGuidePanels() {
   const p2 = new ContainerBuilder()
     .setAccentColor(BLACK)
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent("# BUCKSHOT — GAME GUIDE • 2/4"),
-      new TextDisplayBuilder().setContent(
+      textDisplay("# BUCKSHOT — GAME GUIDE • 2/4"),
+      textDisplay(
         "## 4. Hearts\n" +
         "Every match begins with **4 hearts per player**. A live shell normally removes 1 heart. The Hand Saw can make a live shot remove 2. Hearts carry between rounds instead of being fully restored. At the start of each new round, maximum health drops by 1, but never below 2. This means the game naturally becomes tighter as rounds continue. Example: 4/4 can become a maximum of 3 hearts in Round 2, then a maximum of 2 later. If current health is above the new maximum, it is reduced to that maximum."
       ),
       new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small),
-      new TextDisplayBuilder().setContent(
+      textDisplay(
         "## 5. Rounds and chambers\n" +
         "Each round is one chamber. At the start of a round, the bot secretly builds a random sequence of LIVE and BLANK shells. Players only see the number of shells remaining; they do not see the order. Using an information item can reveal a shell without publicly exposing the result. When every shell in the current chamber is gone, the bot advances to the next round automatically."
       ),
-      new TextDisplayBuilder().setContent(
+      textDisplay(
         "## 6. Turns\n" +
         "The panel always shows whose turn it is. Only that player can use the shooting and item buttons. A normal shot removes the current shell. A LIVE shell deals damage. A BLANK deals no damage. Shooting the opponent normally passes the turn. Shooting yourself with a BLANK keeps the turn, which can let you exploit safe information. If an item says the turn passes, the opponent becomes the next player."
       )
@@ -858,8 +863,8 @@ function buildGuidePanels() {
   const p3 = new ContainerBuilder()
     .setAccentColor(BLACK)
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent("# BUCKSHOT — GAME GUIDE • 3/4"),
-      new TextDisplayBuilder().setContent(
+      textDisplay("# BUCKSHOT — GAME GUIDE • 3/4"),
+      textDisplay(
         "## 7. Items\n" +
         "**Magnifier** — privately reveals the current shell. It does not remove the shell, and it does not pass the turn.\n" +
         "**Beer** — reveals the current shell to you and ejects it. The turn passes.\n" +
@@ -871,11 +876,11 @@ function buildGuidePanels() {
         "**Adrenaline** — steals one random item from the opponent, then the turn passes."
       ),
       new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small),
-      new TextDisplayBuilder().setContent(
+      textDisplay(
         "## 8. Private information\n" +
         "Information revealed by Magnifier and Burner Phone is sent as a private interaction response. The opponent does not receive the revealed shell type. The public game panel only confirms that the item was used and updates the shared state."
       ),
-      new TextDisplayBuilder().setContent(
+      textDisplay(
         "## 9. Turn timer\n" +
         `Every active turn has a **${Math.round(TURN_TIMEOUT_MS / 1000)}-second inactivity timer** by default. The game panel shows a live Discord relative-time countdown. If a player completely abandons a match and does not act before the timer expires, the opponent wins by forfeit. A restart does not reset the timer because the last action timestamp is stored in PostgreSQL.\n\n`
       )
@@ -884,24 +889,24 @@ function buildGuidePanels() {
   const p4 = new ContainerBuilder()
     .setAccentColor(BLACK)
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent("# BUCKSHOT — GAME GUIDE • 4/4"),
-      new TextDisplayBuilder().setContent(
+      textDisplay("# BUCKSHOT — GAME GUIDE • 4/4"),
+      textDisplay(
         "## 10. Difficulties\n" +
         "**Easy — 2 rounds:** shortest match, smaller chambers and a basic item pool.\n" +
         "**Normal — 4 rounds:** balanced standard match with a wider item selection.\n" +
         "**Hard — 6 rounds:** longer survival, larger chambers, more dangerous shell ratios and advanced items.\n" +
         "**Extreme — 8 rounds:** longest standard match, largest chambers, broadest item pool and maximum pressure from shrinking hearts."
       ),
-      new TextDisplayBuilder().setContent(
+      textDisplay(
         "## 11. How a player wins\n" +
         "A player wins immediately when the opponent reaches **0 hearts**. If the final scheduled round ends while both players are alive, the bot compares their remaining hearts. The player with more hearts wins. If both have exactly the same number of hearts, the match enters **Sudden Death**: both players are reduced to 1 heart, their items are cleared and a short chamber is loaded. The first elimination decides the winner, so the match cannot end in a draw."
       ),
       new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small),
-      new TextDisplayBuilder().setContent(
+      textDisplay(
         "## 12. After the match\n" +
         "The result panel identifies **Winner** and **Defeated**, shows final health and difficulty, and provides **Rematch** and **Close Ticket**. Rematch lets either player choose a fresh difficulty and starts another match inside the same private ticket. Closing the ticket removes the channel."
       ),
-      new TextDisplayBuilder().setContent(
+      textDisplay(
         "## 13. Useful commands\n" +
         "`/buckshot challenge @player difficulty:<difficulty>` — challenge.\n" +
         "`/buckshot cancel [player]` — cancel your pending request.\n" +
@@ -923,8 +928,8 @@ function buildResultPanel(game) {
   return new ContainerBuilder()
     .setAccentColor(BLACK)
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent("# BUCKSHOT — GAME OVER"),
-      new TextDisplayBuilder().setContent(
+      textDisplay("# BUCKSHOT — GAME OVER"),
+      textDisplay(
         `${game.endReason ? `**Reason:** ${game.endReason}\n\n` : ""}` +
         `**Winner:** ${userName(game, winner.id)}\n` +
         `**Defeated:** ${userName(game, loser.id)}\n\n` +
@@ -950,9 +955,9 @@ function buildRoundAnnouncement(game, text) {
   return new ContainerBuilder()
     .setAccentColor(BLACK)
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`# BUCKSHOT — ${roundTitle}`),
-      new TextDisplayBuilder().setContent(text),
-      new TextDisplayBuilder().setContent(
+      textDisplay(`# BUCKSHOT — ${roundTitle}`),
+      textDisplay(text),
+      textDisplay(
         `**${userName(game, game.challengerId)}:** ${heartDisplay(game.players[game.challengerId])}\n` +
         `**${userName(game, game.targetId)}:** ${heartDisplay(game.players[game.targetId])}\n\n` +
         `**Next turn:** ${userName(game, game.turnId)}`
@@ -1239,7 +1244,7 @@ async function handleShot(interaction, game, targetSelf) {
         new ContainerBuilder()
           .setAccentColor(BLACK)
           .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
+            textDisplay(
               `${resultText}\n\n` +
               `**${userName(game, game.challengerId)}:** ${heartDisplay(game.players[game.challengerId])}\n` +
               `**${userName(game, game.targetId)}:** ${heartDisplay(game.players[game.targetId])}`
@@ -1262,7 +1267,7 @@ async function privateItemResult(interaction, title, body) {
       new ContainerBuilder()
         .setAccentColor(BLACK)
         .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(`## ${title}\n${body}`)
+          textDisplay(`## ${title}\n${body}`)
         )
     ],
     flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
@@ -1274,7 +1279,7 @@ async function logPublicAction(channel, text) {
     components: [
       new ContainerBuilder()
         .setAccentColor(BLACK)
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(text))
+        .addTextDisplayComponents(textDisplay(text))
     ],
     flags: MessageFlags.IsComponentsV2
   });
@@ -1536,7 +1541,7 @@ async function createGameTicket(guild, challenge) {
       new ContainerBuilder()
         .setAccentColor(BLACK)
         .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(
+          textDisplay(
             `## MATCH STARTED\n` +
             `**Challenger:** <@${game.challengerId}>\n` +
             `**Opponent:** <@${game.targetId}>\n` +
@@ -1666,8 +1671,8 @@ async function sendStats(interaction, userId) {
       new ContainerBuilder()
         .setAccentColor(BLACK)
         .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(`# BUCKSHOT — STATISTICS\n**${stats.display_name === "Unknown Player" ? `<@${userId}>` : stats.display_name}**`),
-          new TextDisplayBuilder().setContent(
+          textDisplay(`# BUCKSHOT — STATISTICS\n**${stats.display_name === "Unknown Player" ? `<@${userId}>` : stats.display_name}**`),
+          textDisplay(
             `**Games:** ${stats.games}\n` +
             `**Wins:** ${stats.wins}\n` +
             `**Losses:** ${stats.losses}\n` +
@@ -1695,8 +1700,8 @@ async function sendLeaderboard(interaction) {
       new ContainerBuilder()
         .setAccentColor(BLACK)
         .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent("# BUCKSHOT — LEADERBOARD"),
-          new TextDisplayBuilder().setContent(lines)
+          textDisplay("# BUCKSHOT — LEADERBOARD"),
+          textDisplay(lines)
         )
     ],
     flags: MessageFlags.IsComponentsV2
@@ -1845,7 +1850,7 @@ client.on("interactionCreate", async interaction => {
             new ContainerBuilder()
               .setAccentColor(BLACK)
               .addTextDisplayComponents(
-                new TextDisplayBuilder().setContent(
+                textDisplay(
                   `## BUCKSHOT — CHANNEL RESTRICTED\nNew challenge requests can now only be started in ${channel}.\n\nUse /buckshot unrestrict to allow challenges in any channel again.`
                 )
               )
@@ -1861,7 +1866,7 @@ client.on("interactionCreate", async interaction => {
             new ContainerBuilder()
               .setAccentColor(BLACK)
               .addTextDisplayComponents(
-                new TextDisplayBuilder().setContent("## BUCKSHOT — RESTRICTION REMOVED\nNew challenge requests can now be started in any channel.")
+                textDisplay("## BUCKSHOT — RESTRICTION REMOVED\nNew challenge requests can now be started in any channel.")
               )
           ],
           flags: MessageFlags.IsComponentsV2
@@ -1879,8 +1884,8 @@ client.on("interactionCreate", async interaction => {
             new ContainerBuilder()
               .setAccentColor(BLACK)
               .addTextDisplayComponents(
-                new TextDisplayBuilder().setContent("# BUCKSHOT — ACTIVE MATCHES"),
-                new TextDisplayBuilder().setContent(body)
+                textDisplay("# BUCKSHOT — ACTIVE MATCHES"),
+                textDisplay(body)
               )
           ],
           flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
@@ -2019,7 +2024,7 @@ client.on("interactionCreate", async interaction => {
             new ContainerBuilder()
               .setAccentColor(BLACK)
               .addTextDisplayComponents(
-                new TextDisplayBuilder().setContent(
+                textDisplay(
                   `## REMATCH STARTED\n**Difficulty:** ${DIFFICULTIES[value].label}\n**Rounds:** ${DIFFICULTIES[value].rounds}\n**First turn:** <@${game.turnId}>`
                 )
               )
