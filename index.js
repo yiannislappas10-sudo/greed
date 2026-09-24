@@ -865,103 +865,124 @@ function buildRematchPanel(game) {
     );
 }
 
-function buildGuidePanels() {
-  const p1 = new ContainerBuilder()
+function rulesButton(customId, label, style = ButtonStyle.Secondary) {
+  return new ButtonBuilder().setCustomId(customId).setLabel(label).setStyle(style);
+}
+
+function buildRulesPanel(section = "home") {
+  const sections = {
+    home: {
+      title: "# BUCKSHOT — RULES",
+      text:
+        "Choose a section below to expand it. The rules are shown inside this Components V2 panel.\n\n" +
+        "**Basics** — how a match starts and how the ticket works.\n" +
+        "**Turns** — shooting, shells and turn order.\n" +
+        "**Items** — every item and its effect.\n" +
+        "**Winning** — rounds, sudden death and forfeits.\n" +
+        "**Wagers** — how Buckshot connects to Envy and how the pot is paid.",
+    },
+    basics: {
+      title: "# BUCKSHOT — BASICS",
+      text:
+        "**1. Two players only**\n" +
+        "A player challenges another player. The opponent can accept or decline. You can cancel your own pending request before it is accepted.\n\n" +
+        "**2. Private ticket**\n" +
+        "Once accepted, Greed creates a private ticket for the two players and the bot. The match is controlled from the Components V2 game panel.\n\n" +
+        "**3. Difficulty**\n" +
+        "Easy has 2 rounds, Normal 4, Hard 6 and Extreme 8. Higher difficulties use larger chambers, tougher shell requirements and broader item pools.\n\n" +
+        "**4. Challenge expiry**\n" +
+        "A pending challenge expires after 2 minutes if nobody responds.",
+    },
+    turns: {
+      title: "# BUCKSHOT — TURNS",
+      text:
+        "**1. Shells**\n" +
+        "Each round secretly contains a random sequence of LIVE and BLANK shells. Players only see how many shells remain.\n\n" +
+        "**2. Shooting**\n" +
+        "Shoot the opponent to test the current shell. A LIVE shell normally removes 1 heart; a BLANK does no damage.\n\n" +
+        "**3. Shooting yourself**\n" +
+        "You can shoot yourself. If the shell is BLANK, the turn stays with you, otherwise the normal turn flow continues.\n\n" +
+        "**4. Turn timer**\n" +
+        "Every active turn has a default 120-second inactivity timer. When it expires, the opponent wins by forfeit.",
+    },
+    items: {
+      title: "# BUCKSHOT — ITEMS",
+      text:
+        "**Magnifier** — privately reveals the current shell without removing it.\n" +
+        "**Beer** — reveals and ejects the current shell, then passes the turn.\n" +
+        "**Cigarettes** — restores 1 heart up to your current maximum, then passes the turn.\n" +
+        "**Hand Saw** — arms the next shot; a LIVE shot deals 2 damage. Arming it passes the turn.\n" +
+        "**Handcuffs** — makes the opponent lose their next turn.\n" +
+        "**Burner Phone** — privately reveals a random future shell, then passes the turn.\n" +
+        "**Inverter** — flips the current shell from LIVE to BLANK or BLANK to LIVE, then passes the turn.\n" +
+        "**Adrenaline** — steals one random item from the opponent, then passes the turn.",
+    },
+    winning: {
+      title: "# BUCKSHOT — WINNING",
+      text:
+        "**Hearts**\n" +
+        "Players start with 4 hearts. At the start of later rounds, maximum health drops by 1 but never below 2. Current health cannot exceed the new maximum.\n\n" +
+        "**Round completion**\n" +
+        "When all shells in a chamber are gone, the next round starts automatically.\n\n" +
+        "**Match win**\n" +
+        "A player wins immediately when the opponent reaches 0 hearts. If the final scheduled round ends with both alive, the player with more hearts wins.\n\n" +
+        "**Sudden Death**\n" +
+        "If the final round is tied, both players are reduced to 1 heart, items are cleared and a short chamber is loaded. The first elimination decides the match.",
+    },
+    money: {
+      title: "# BUCKSHOT — ENVY WAGERS",
+      text:
+        "**Wallet source**\n" +
+        "Buckshot uses the player’s Envy wallet. Banked currency is not used for wagers.\n\n" +
+        "**When money moves**\n" +
+        "The wager is not taken when the challenge is created. Both players’ stakes are locked only after the opponent accepts.\n\n" +
+        "**The pot**\n" +
+        "Each player contributes the exact amount shown on the challenge. The winner receives the full 2× pot.\n\n" +
+        "**Refunds and recovery**\n" +
+        "If a ticket cannot be created after a successful lock, Greed asks Envy to refund both stakes. Settlement operations are persisted and retried after restart.\n\n" +
+        "**Example**\n        amount:5000 means 5,000 coins from each player and a 10,000-coin winner payout.",
+    }
+  };
+
+  const data = sections[section] || sections.home;
+  const container = new ContainerBuilder()
     .setAccentColor(BLACK)
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent("# BUCKSHOT — GAME GUIDE • 1/4"),
-      new TextDisplayBuilder().setContent(
-        "## 1. The idea\n" +
-        "Buckshot is a private, two-player, turn-based chamber game. One player challenges another. After the challenge is accepted, the bot creates a private ticket that only the two players and the bot can access. The entire game is controlled from the black Components V2 game panel. You do not type shooting or item commands during the match. The bot handles the hidden chamber, turns, hearts, items, rounds and win condition."
-      ),
-      new TextDisplayBuilder().setContent(
-        "## 2. Starting a challenge\n" +
-        "Use `/buckshot challenge @player difficulty:<difficulty> amount:<currency>`. The request displays the Challenger, Opponent, Difficulty, number of Rounds, Starting Hearts and Winner status. Both players are pinged. The opponent has **Accept** and **Decline**. The challenger has **Cancel Request**. A pending request automatically expires after 2 minutes if it is not answered. You can also use `/buckshot cancel` to cancel your own pending request."
-      ),
-      new TextDisplayBuilder().setContent(
-        "## 3. The private ticket\n" +
-        "Accepting the challenge creates a private text channel under `Buckshot Tickets`. The two players can see and use it; the bot can manage it; everybody else is denied View Channel. The game starts immediately. Staff can close a ticket when necessary, and the bot has recovery commands for stuck games."
-      )
+      new TextDisplayBuilder().setContent(data.title),
+      new TextDisplayBuilder().setContent(data.text)
     )
-    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+    .addSeparatorComponents(
+      new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+    );
 
-  const p2 = new ContainerBuilder()
-    .setAccentColor(BLACK)
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent("# BUCKSHOT — GAME GUIDE • 2/4"),
-      new TextDisplayBuilder().setContent(
-        "## 4. Hearts\n" +
-        "Every match begins with **4 hearts per player**. A live shell normally removes 1 heart. The Hand Saw can make a live shot remove 2. Hearts carry between rounds instead of being fully restored. At the start of each new round, maximum health drops by 1, but never below 2. This means the game naturally becomes tighter as rounds continue. Example: 4/4 can become a maximum of 3 hearts in Round 2, then a maximum of 2 later. If current health is above the new maximum, it is reduced to that maximum."
-      ),
-      new TextDisplayBuilder().setContent(
-        "## 5. Rounds and chambers\n" +
-        "Each round is one chamber. At the start of a round, the bot secretly builds a random sequence of LIVE and BLANK shells. Players only see the number of shells remaining; they do not see the order. Using an information item can reveal a shell without publicly exposing the result. When every shell in the current chamber is gone, the bot advances to the next round automatically."
-      ),
-      new TextDisplayBuilder().setContent(
-        "## 6. Turns\n" +
-        "The panel always shows whose turn it is. Only that player can use the shooting and item buttons. A normal shot removes the current shell. A LIVE shell deals damage. A BLANK deals no damage. Shooting the opponent normally passes the turn. Shooting yourself with a BLANK keeps the turn, which can let you exploit safe information. If an item says the turn passes, the opponent becomes the next player."
+  if (section === "home") {
+    container.addActionRowComponents(
+      new ActionRowBuilder().addComponents(
+        rulesButton("rules:basics", "Basics"),
+        rulesButton("rules:turns", "Turns"),
+        rulesButton("rules:items", "Items"),
+        rulesButton("rules:winning", "Winning"),
+        rulesButton("rules:money", "Wagers")
       )
-    )
-    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-
-  const p3 = new ContainerBuilder()
-    .setAccentColor(BLACK)
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent("# BUCKSHOT — GAME GUIDE • 3/4"),
-      new TextDisplayBuilder().setContent(
-        "## 7. Items\n" +
-        "**Magnifier** — privately reveals the current shell. It does not remove the shell, and it does not pass the turn.\n" +
-        "**Beer** — reveals the current shell to you and ejects it. The turn passes.\n" +
-        "**Cigarettes** — restores 1 heart up to your current maximum, then the turn passes.\n" +
-        "**Hand Saw** — arms your next shot. If that shot is LIVE, it deals 2 damage instead of 1. Arming the saw passes the turn.\n" +
-        "**Handcuffs** — marks the opponent to lose their next turn.\n" +
-        "**Burner Phone** — privately reveals a random future shell, then the turn passes.\n" +
-        "**Inverter** — flips the current shell from LIVE to BLANK or BLANK to LIVE, then the turn passes.\n" +
-        "**Adrenaline** — steals one random item from the opponent, then the turn passes."
-      ),
-      new TextDisplayBuilder().setContent(
-        "## 8. Private information\n" +
-        "Information revealed by Magnifier and Burner Phone is sent as a private interaction response. The opponent does not receive the revealed shell type. The public game panel only confirms that the item was used and updates the shared state."
-      ),
-      new TextDisplayBuilder().setContent(
-        "## 9. Turn timer\n" +
-        `Every active turn has a **${Math.round(TURN_TIMEOUT_MS / 1000)}-second inactivity timer** by default. The game panel shows a live Discord relative-time countdown. If a player completely abandons a match and does not act before the timer expires, the opponent wins by forfeit. A restart does not reset the timer because the last action timestamp is stored in PostgreSQL.\n\n`
+    );
+  } else {
+    container.addActionRowComponents(
+      new ActionRowBuilder().addComponents(
+        rulesButton("rules:home", "Rules Home"),
+        rulesButton("rules:basics", "Basics"),
+        rulesButton("rules:turns", "Turns"),
+        rulesButton("rules:items", "Items"),
+        rulesButton("rules:winning", "Winning")
       )
-    )
-    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
-
-  const p4 = new ContainerBuilder()
-    .setAccentColor(BLACK)
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent("# BUCKSHOT — GAME GUIDE • 4/4"),
-      new TextDisplayBuilder().setContent(
-        "## 10. Difficulties\n" +
-        "**Easy — 2 rounds:** shortest match, smaller chambers and a basic item pool.\n" +
-        "**Normal — 4 rounds:** balanced standard match with a wider item selection.\n" +
-        "**Hard — 6 rounds:** longer survival, larger chambers, more dangerous shell ratios and advanced items.\n" +
-        "**Extreme — 8 rounds:** longest standard match, largest chambers, broadest item pool and maximum pressure from shrinking hearts."
-      ),
-      new TextDisplayBuilder().setContent(
-        "## 11. How a player wins\n" +
-        "A player wins immediately when the opponent reaches **0 hearts**. If the final scheduled round ends while both players are alive, the bot compares their remaining hearts. The player with more hearts wins. If both have exactly the same number of hearts, the match enters **Sudden Death**: both players are reduced to 1 heart, their items are cleared and a short chamber is loaded. The first elimination decides the winner, so the match cannot end in a draw."
-      ),
-      new TextDisplayBuilder().setContent(
-        "## 12. After the match\n" +
-        "The result panel identifies **Winner** and **Defeated**, shows final health and difficulty, and provides **Rematch** and **Close Ticket**. Rematch lets either player choose a fresh difficulty and starts another match inside the same private ticket. Closing the ticket removes the channel."
-      ),
-      new TextDisplayBuilder().setContent(
-        "## 13. Useful commands\n" +
-        "`/buckshot challenge @player difficulty:<difficulty> amount:<currency>` — challenge.\n" +
-        "`/buckshot cancel [player]` — cancel your pending request.\n" +
-        "`/buckshot guide` — post this guide.\n" +
-        "`/buckshot stats [player]` — view statistics.\n" +
-        "`/buckshot leaderboard` — view the server leaderboard.\n" +
-        "Staff: `/buckshot restrict #channel`, `/buckshot unrestrict`, `/buckshot active`, `/buckshot forceend [channel]`, `/buckshot reset @player`."
+    );
+    container.addActionRowComponents(
+      new ActionRowBuilder().addComponents(
+        rulesButton("rules:money", "Wagers", ButtonStyle.Primary)
       )
-    )
-    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+    );
+  }
 
-  return [p1, p2, p3, p4];
+  return container;
 }
 
 function buildResultPanel(game) {
@@ -1800,11 +1821,10 @@ client.on("interactionCreate", async interaction => {
       const subcommand = interaction.options.getSubcommand();
 
       if (subcommand === "guide" || subcommand === "rules") {
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-        for (const panel of buildGuidePanels()) {
-          await interaction.channel.send({ components: [panel], flags: MessageFlags.IsComponentsV2 });
-        }
-        return interaction.editReply({ content: "The full Buckshot guide has been posted in this channel." });
+        return interaction.reply({
+          components: [buildRulesPanel()],
+          flags: MessageFlags.IsComponentsV2
+        });
       }
 
       if (subcommand === "challenge") {
@@ -1973,6 +1993,14 @@ client.on("interactionCreate", async interaction => {
     const parts = interaction.customId.split(":");
     const scope = parts[0];
     const action = parts[1];
+
+    if (scope === "rules") {
+      const section = parts[1] || "home";
+      return interaction.update({
+        components: [buildRulesPanel(section)],
+        flags: MessageFlags.IsComponentsV2
+      });
+    }
 
     if (scope === "challenge") {
       const challengeId = parts[2];
