@@ -2204,6 +2204,14 @@ client.on("error", console.error);
 client.on("interactionCreate", async interaction => {
   try {
     if (interaction.isChatInputCommand()) {
+      if (interaction.commandName === "dashboard") {
+        if (!await requireGreedDashboardAdmin(interaction)) return;
+        return interaction.reply({
+          components: [await buildGreedDashboard(interaction.guildId, "home")],
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+        });
+      }
+
       if (interaction.commandName !== "buckshot") return;
       const subcommand = interaction.options.getSubcommand();
 
@@ -2226,9 +2234,16 @@ client.on("interactionCreate", async interaction => {
         const difficulty = interaction.options.getString("difficulty", true);
         const amount = interaction.options.getInteger("amount", true);
         const challenger = interaction.user;
+        const settings = await getBuckshotSettings(interaction.guildId);
 
-        if (amount <= 0) {
-          return interaction.reply({ content: "The wager must be greater than 0.", flags: MessageFlags.Ephemeral });
+        if (!settings.wager_enabled) {
+          return interaction.reply({ content: "Money wagers are currently disabled by a server administrator.", flags: MessageFlags.Ephemeral });
+        }
+        if (amount < settings.min_wager || amount > settings.max_wager) {
+          return interaction.reply({
+            content: "Wager must be between " + settings.min_wager.toLocaleString() + " and " + settings.max_wager.toLocaleString() + ".",
+            flags: MessageFlags.Ephemeral
+          });
         }
         if (!envyConfigured()) {
           return interaction.reply({ content: "Money-backed Buckshot is not configured yet. Envy connection is required.", flags: MessageFlags.Ephemeral });
@@ -2375,11 +2390,23 @@ client.on("interactionCreate", async interaction => {
       }
     }
 
+    if (interaction.isChannelSelectMenu() && interaction.customId === "gbdash:channel-select") {
+      return handleGreedDashboardSelect(interaction);
+    }
+
+    if (interaction.isModalSubmit() && interaction.customId === "gbdash:settings-submit") {
+      return handleGreedDashboardModal(interaction);
+    }
+
     if (!interaction.isButton()) return;
 
     const parts = interaction.customId.split(":");
     const scope = parts[0];
     const action = parts[1];
+
+    if (scope === "gbdash") {
+      return handleGreedDashboardButton(interaction, parts[1]);
+    }
 
     if (scope === "rules") {
       const section = parts[1] || "home";
