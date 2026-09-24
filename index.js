@@ -380,6 +380,7 @@ function hydrateGame(row) {
     wager: Number(row.wager || 0),
     wagerId: row.wager_id || null,
     wagerStatus: row.wager_status || 'none',
+    turnTimeoutMs: null,
     round: row.round,
     turnId: row.turn_id,
     shells: rawShells || [],
@@ -643,6 +644,7 @@ async function restoreState() {
   const gameRows = await dbQuery(`SELECT * FROM buckshot_games`);
   for (const row of gameRows.rows) {
     const game = hydrateGame(row);
+    game.turnTimeoutMs = await turnTimeoutMsFor(game);
     games.set(game.id, game);
     if (!game.finished) {
       activeUsers.set(game.challengerId, game.id);
@@ -773,7 +775,8 @@ function formatItems(player) {
 
 function turnCountdown(game) {
   if (game.finished || !game.turnId || game.suddenDeath && !game.lastActionAt) return "";
-  const expires = Math.floor((game.lastActionAt + TURN_TIMEOUT_MS) / 1000);
+  const timeoutMs = game.turnTimeoutMs || TURN_TIMEOUT_MS;
+  const expires = Math.floor((game.lastActionAt + timeoutMs) / 1000);
   return `**Turn timer:** <t:${expires}:R>`;
 }
 
@@ -1127,7 +1130,8 @@ function scheduleTurnTimer(game) {
   clearTurnTimer(game.id);
   if (game.finished || !game.turnId) return;
 
-  const remaining = Math.max(1, TURN_TIMEOUT_MS - (Date.now() - game.lastActionAt));
+  const timeoutMs = game.turnTimeoutMs || TURN_TIMEOUT_MS;
+  const remaining = Math.max(1, timeoutMs - (Date.now() - game.lastActionAt));
   turnTimers.set(
     game.id,
     setTimeout(() => handleTurnTimeout(game.id).catch(console.error), remaining)
@@ -1293,7 +1297,8 @@ async function handleTurnTimeout(gameId) {
   const game = games.get(gameId);
   if (!game || game.finished) return;
 
-  if (Date.now() - game.lastActionAt < TURN_TIMEOUT_MS) {
+  const timeoutMs = game.turnTimeoutMs || TURN_TIMEOUT_MS;
+  if (Date.now() - game.lastActionAt < timeoutMs) {
     scheduleTurnTimer(game);
     return;
   }
@@ -1617,6 +1622,7 @@ async function createGameTicket(guild, challenge) {
     ]
   });
 
+  const settings = await getBuckshotSettings(guild.id);
   const game = {
     id: gameId,
     guildId: guild.id,
@@ -1627,6 +1633,7 @@ async function createGameTicket(guild, challenge) {
     wager: Number(challenge.wager || 0),
     wagerId: challenge.id,
     wagerStatus: 'locked',
+    turnTimeoutMs: Math.max(30_000, settings.turn_timeout_seconds * 1000),
     round: 1,
     turnId: Math.random() < 0.5 ? challenge.challengerId : challenge.targetId,
     shells: [],
@@ -1707,6 +1714,7 @@ async function createGameTicket(guild, challenge) {
 
 async function startRematch(game, difficulty) {
   const wagerId = game.id + ":rematch:" + Date.now().toString();
+  const settings = await getBuckshotSettings(game.guildId);
   await lockBuckshotWager(
     wagerId,
     game.guildId,
@@ -1724,6 +1732,7 @@ async function startRematch(game, difficulty) {
 
   game.wagerId = wagerId;
   game.wagerStatus = "locked";
+  game.turnTimeoutMs = Math.max(30_000, settings.turn_timeout_seconds * 1000);
   game.difficulty = difficulty;
   game.round = 1;
   game.turnId = Math.random() < 0.5 ? game.challengerId : game.targetId;
