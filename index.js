@@ -183,6 +183,11 @@ function getChallengeRestrictionText(guildId) {
   return channelId ? `<#${channelId}>` : "any channel";
 }
 
+async function turnTimeoutMsFor(game) {
+  const settings = await getBuckshotSettings(game.guildId);
+  return Math.max(30_000, settings.turn_timeout_seconds * 1000);
+}
+
 async function dbQuery(text, params = []) {
   if (!pool || !dbReady) return null;
   return pool.query(text, params);
@@ -198,7 +203,11 @@ async function initDatabase() {
     CREATE TABLE IF NOT EXISTS buckshot_guild_settings (
       guild_id TEXT PRIMARY KEY,
       challenge_channel_id TEXT,
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      wager_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+      min_wager BIGINT NOT NULL DEFAULT 1,
+      max_wager BIGINT NOT NULL DEFAULT 1000000,
+      turn_timeout_seconds INTEGER NOT NULL DEFAULT 120
     );
 
     CREATE TABLE IF NOT EXISTS buckshot_challenges (
@@ -253,6 +262,10 @@ async function initDatabase() {
     );
   `);
   await pool.query(`
+    ALTER TABLE buckshot_guild_settings ADD COLUMN IF NOT EXISTS wager_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+    ALTER TABLE buckshot_guild_settings ADD COLUMN IF NOT EXISTS min_wager BIGINT NOT NULL DEFAULT 1;
+    ALTER TABLE buckshot_guild_settings ADD COLUMN IF NOT EXISTS max_wager BIGINT NOT NULL DEFAULT 1000000;
+    ALTER TABLE buckshot_guild_settings ADD COLUMN IF NOT EXISTS turn_timeout_seconds INTEGER NOT NULL DEFAULT 120;
     ALTER TABLE buckshot_challenges ADD COLUMN IF NOT EXISTS wager BIGINT NOT NULL DEFAULT 0;
     ALTER TABLE buckshot_games ADD COLUMN IF NOT EXISTS wager BIGINT NOT NULL DEFAULT 0;
     ALTER TABLE buckshot_games ADD COLUMN IF NOT EXISTS wager_id TEXT;
@@ -284,6 +297,58 @@ async function loadRestrictions() {
   for (const row of result.rows) {
     if (row.challenge_channel_id) memoryRestrictions.set(row.guild_id, row.challenge_channel_id);
   }
+}
+
+async function getBuckshotSettings(guildId) {
+  const defaults = {
+    guild_id: guildId,
+    challenge_channel_id: null,
+    wager_enabled: true,
+    min_wager: 1,
+    max_wager: 1000000,
+    turn_timeout_seconds: 120
+  };
+  if (!dbReady) return defaults;
+
+  const result = await dbQuery(
+    "SELECT * FROM buckshot_guild_settings WHERE guild_id = $1",
+    [guildId]
+  );
+  if (!result.rows[0]) {
+    await dbQuery(
+      "INSERT INTO buckshot_guild_settings (guild_id) VALUES ($1) ON CONFLICT DO NOTHING",
+      [guildId]
+    );
+    return defaults;
+  }
+  const row = result.rows[0];
+  return {
+    guild_id: row.guild_id,
+    challenge_channel_id: row.challenge_channel_id,
+    wager_enabled: row.wager_enabled,
+    min_wager: Number(row.min_wager),
+    max_wager: Number(row.max_wager),
+    turn_timeout_seconds: Number(row.turn_timeout_seconds)
+  };
+}
+
+async function updateBuckshotSettings(guildId, fields) {
+  if (!dbReady) return;
+  const allowed = new Set([
+    "challenge_channel_id",
+    "wager_enabled",
+    "min_wager",
+    "max_wager",
+    "turn_timeout_seconds"
+  ]);
+  const entries = Object.entries(fields).filter(([key]) => allowed.has(key));
+  if (!entries.length) return;
+  const columns = entries.map(([key], i) => `${key} = ${i + 2}`).join(", ");
+  const values = [guildId, ...entries.map(([, value]) => value)];
+  await dbQuery(
+    `UPDATE buckshot_guild_settings SET ${columns}, updated_at = NOW() WHERE guild_id = $1`,
+    values
+  );
 }
 
 function serializeGame(game) {
