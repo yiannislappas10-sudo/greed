@@ -1053,6 +1053,306 @@ function buildRulesPanel(section = "home") {
   return container;
 }
 
+
+function dashboardButton(customId, label, style = ButtonStyle.Secondary, disabled = false) {
+  return new ButtonBuilder()
+    .setCustomId(customId)
+    .setLabel(label)
+    .setStyle(style)
+    .setDisabled(disabled);
+}
+
+async function buildGreedDashboard(guildId, page = "home") {
+  const settings = await getBuckshotSettings(guildId);
+
+  if (page === "home") {
+    const channel = settings.challenge_channel_id
+      ? "<#" + settings.challenge_channel_id + ">"
+      : "Any channel";
+    const active = [...games.values()].filter(game => game.guildId === guildId && !game.finished).length;
+
+    return new ContainerBuilder()
+      .setAccentColor(BLACK)
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent("# GREED — ADMIN DASHBOARD"),
+        new TextDisplayBuilder().setContent(
+          "Central Buckshot server controls.\\n\\n" +
+          "**Challenge channel:** " + channel + "\\n" +
+          "**Wagers:** " + (settings.wager_enabled ? "ON" : "OFF") + "\\n" +
+          "**Wager range:** " + settings.min_wager.toLocaleString() + " — " + settings.max_wager.toLocaleString() + "\\n" +
+          "**Turn timeout:** " + settings.turn_timeout_seconds + "s\\n" +
+          "**Active matches:** " + active
+        )
+      )
+      .addSeparatorComponents(
+        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+      )
+      .addActionRowComponents(
+        new ActionRowBuilder().addComponents(
+          dashboardButton("gbdash:settings", "Settings"),
+          dashboardButton("gbdash:channel", "Command Channel"),
+          dashboardButton("gbdash:wager", "Wagering"),
+          dashboardButton("gbdash:active", "Active Matches")
+        )
+      )
+      .addActionRowComponents(
+        new ActionRowBuilder().addComponents(
+          dashboardButton("gbdash:close", "Close", ButtonStyle.Danger)
+        )
+      );
+  }
+
+  if (page === "settings") {
+    return new ContainerBuilder()
+      .setAccentColor(BLACK)
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent("# GREED — MATCH SETTINGS"),
+        new TextDisplayBuilder().setContent(
+          "**Turn timeout:** " + settings.turn_timeout_seconds + "s\\n" +
+          "**Minimum wager:** " + settings.min_wager.toLocaleString() + "\\n" +
+          "**Maximum wager:** " + settings.max_wager.toLocaleString() + "\\n\\n" +
+          "Edit these values with the button below. The timeout is saved into new matches."
+        )
+      )
+      .addSeparatorComponents(
+        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+      )
+      .addActionRowComponents(
+        new ActionRowBuilder().addComponents(
+          dashboardButton("gbdash:settings-modal", "Edit Settings", ButtonStyle.Primary),
+          dashboardButton("gbdash:home", "Back")
+        )
+      );
+  }
+
+  if (page === "channel") {
+    const channel = settings.challenge_channel_id
+      ? "<#" + settings.challenge_channel_id + ">"
+      : "Any channel";
+    const select = new ChannelSelectMenuBuilder()
+      .setCustomId("gbdash:channel-select")
+      .setPlaceholder("Choose the challenge channel")
+      .setChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement);
+
+    return new ContainerBuilder()
+      .setAccentColor(BLACK)
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent("# GREED — COMMAND ACCESS"),
+        new TextDisplayBuilder().setContent(
+          "Challenge requests are currently allowed in: **" + channel + "**.\\n\\n" +
+          "Select a channel below to restrict new Buckshot challenges to that channel."
+        )
+      )
+      .addSeparatorComponents(
+        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+      )
+      .addActionRowComponents(new ActionRowBuilder().addComponents(select))
+      .addActionRowComponents(
+        new ActionRowBuilder().addComponents(
+          dashboardButton("gbdash:channel-any", "Allow Anywhere"),
+          dashboardButton("gbdash:home", "Back")
+        )
+      );
+  }
+
+  if (page === "wager") {
+    return new ContainerBuilder()
+      .setAccentColor(BLACK)
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent("# GREED — WAGER CONTROL"),
+        new TextDisplayBuilder().setContent(
+          "**Money wagers:** " + (settings.wager_enabled ? "ON" : "OFF") + "\\n" +
+          "**Minimum:** " + settings.min_wager.toLocaleString() + "\\n" +
+          "**Maximum:** " + settings.max_wager.toLocaleString() + "\\n\\n" +
+          "When enabled, both players' wallet stakes are locked through Envy after acceptance."
+        )
+      )
+      .addSeparatorComponents(
+        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+      )
+      .addActionRowComponents(
+        new ActionRowBuilder().addComponents(
+          dashboardButton(
+            "gbdash:wager-toggle",
+            settings.wager_enabled ? "Disable Wagers" : "Enable Wagers",
+            settings.wager_enabled ? ButtonStyle.Danger : ButtonStyle.Success
+          ),
+          dashboardButton("gbdash:settings-modal", "Set Limits", ButtonStyle.Primary),
+          dashboardButton("gbdash:home", "Back")
+        )
+      );
+  }
+
+  if (page === "active") {
+    const active = [...games.values()].filter(game => game.guildId === guildId && !game.finished);
+    const body = active.length
+      ? active.map((game, index) =>
+          (index + 1) + ". <#" + game.channelId + "> — " +
+          userName(game, game.challengerId) + " vs " + userName(game, game.targetId) +
+          " · " + difficultyFor(game).label +
+          " · " + Number(game.wager || 0).toLocaleString() + " wager"
+        ).join("\\n")
+      : "No active Buckshot matches.";
+
+    return new ContainerBuilder()
+      .setAccentColor(BLACK)
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent("# GREED — ACTIVE MATCHES"),
+        new TextDisplayBuilder().setContent(body)
+      )
+      .addSeparatorComponents(
+        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+      )
+      .addActionRowComponents(
+        new ActionRowBuilder().addComponents(
+          dashboardButton("gbdash:active", "Refresh", ButtonStyle.Primary),
+          dashboardButton("gbdash:home", "Back")
+        )
+      );
+  }
+
+  return buildGreedDashboard(guildId, "home");
+}
+
+async function requireGreedDashboardAdmin(interaction) {
+  if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
+    await interaction.reply({
+      content: "Administrator permission is required.",
+      flags: MessageFlags.Ephemeral
+    });
+    return false;
+  }
+  return true;
+}
+
+async function handleGreedDashboardButton(interaction, action) {
+  if (!await requireGreedDashboardAdmin(interaction)) return;
+
+  if (action === "close") {
+    return interaction.update({
+      components: [],
+      flags: MessageFlags.IsComponentsV2
+    });
+  }
+
+  if (action === "settings" || action === "channel" || action === "wager" || action === "active") {
+    return interaction.update({
+      components: [await buildGreedDashboard(interaction.guildId, action)],
+      flags: MessageFlags.IsComponentsV2
+    });
+  }
+
+  if (action === "home") {
+    return interaction.update({
+      components: [await buildGreedDashboard(interaction.guildId, "home")],
+      flags: MessageFlags.IsComponentsV2
+    });
+  }
+
+  if (action === "channel-any") {
+    await saveRestriction(interaction.guildId, null);
+    await updateBuckshotSettings(interaction.guildId, { challenge_channel_id: null });
+    return interaction.update({
+      components: [await buildGreedDashboard(interaction.guildId, "channel")],
+      flags: MessageFlags.IsComponentsV2
+    });
+  }
+
+  if (action === "wager-toggle") {
+    const settings = await getBuckshotSettings(interaction.guildId);
+    await updateBuckshotSettings(interaction.guildId, { wager_enabled: !settings.wager_enabled });
+    return interaction.update({
+      components: [await buildGreedDashboard(interaction.guildId, "wager")],
+      flags: MessageFlags.IsComponentsV2
+    });
+  }
+
+  if (action === "settings-modal") {
+    const settings = await getBuckshotSettings(interaction.guildId);
+    const modal = new ModalBuilder()
+      .setCustomId("gbdash:settings-submit")
+      .setTitle("Greed — Match Settings");
+
+    const timeout = new TextInputBuilder()
+      .setCustomId("turn_timeout")
+      .setLabel("Turn timeout seconds")
+      .setStyle(TextInputStyle.Short)
+      .setValue(String(settings.turn_timeout_seconds))
+      .setRequired(true);
+
+    const min = new TextInputBuilder()
+      .setCustomId("min_wager")
+      .setLabel("Minimum wager")
+      .setStyle(TextInputStyle.Short)
+      .setValue(String(settings.min_wager))
+      .setRequired(true);
+
+    const max = new TextInputBuilder()
+      .setCustomId("max_wager")
+      .setLabel("Maximum wager")
+      .setStyle(TextInputStyle.Short)
+      .setValue(String(settings.max_wager))
+      .setRequired(true);
+
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(timeout),
+      new ActionRowBuilder().addComponents(min),
+      new ActionRowBuilder().addComponents(max)
+    );
+    return interaction.showModal(modal);
+  }
+}
+
+async function handleGreedDashboardSelect(interaction) {
+  if (!await requireGreedDashboardAdmin(interaction)) return;
+  const channelId = interaction.values[0];
+  await saveRestriction(interaction.guildId, channelId);
+  await updateBuckshotSettings(interaction.guildId, { challenge_channel_id: channelId });
+  return interaction.reply({
+    content: "Buckshot challenge requests are now restricted to <#" + channelId + ">.",
+    flags: MessageFlags.Ephemeral
+  });
+}
+
+async function handleGreedDashboardModal(interaction) {
+  if (!await requireGreedDashboardAdmin(interaction)) return;
+
+  const timeout = Number(interaction.fields.getTextInputValue("turn_timeout"));
+  const minWager = Number(interaction.fields.getTextInputValue("min_wager"));
+  const maxWager = Number(interaction.fields.getTextInputValue("max_wager"));
+
+  if (!Number.isInteger(timeout) || timeout < 30 || timeout > 3600) {
+    return interaction.reply({
+      content: "Turn timeout must be between 30 and 3600 seconds.",
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  if (
+    !Number.isInteger(minWager) ||
+    !Number.isInteger(maxWager) ||
+    minWager < 1 ||
+    maxWager < minWager ||
+    maxWager > 2147483647
+  ) {
+    return interaction.reply({
+      content: "Wager limits are invalid.",
+      flags: MessageFlags.Ephemeral
+    });
+  }
+
+  await updateBuckshotSettings(interaction.guildId, {
+    turn_timeout_seconds: timeout,
+    min_wager: minWager,
+    max_wager: maxWager
+  });
+
+  return interaction.reply({
+    content: "Greed dashboard settings saved.",
+    flags: MessageFlags.Ephemeral
+  });
+}
+
 function buildResultPanel(game) {
   const winner = game.players[game.winnerId];
   const loserId = oppositePlayerId(game, game.winnerId);
