@@ -4,8 +4,14 @@ const {
   REST,
   Routes,
   SlashCommandBuilder,
-  ChannelType
+  ChannelType,
+  PermissionFlagsBits
 } = require("discord.js");
+
+const dashboardCommand = new SlashCommandBuilder()
+  .setName("dashboard")
+  .setDescription("[Admin] Open the Greed Components V2 administration dashboard.")
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 const command = new SlashCommandBuilder()
   .setName("buckshot")
@@ -131,7 +137,7 @@ async function main() {
   const rest = new REST({ version: "10" }).setToken(process.env.BOT_TOKEN);
   await rest.put(
     Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
-    { body: [command.toJSON()] }
+    { body: [command.toJSON(), dashboardCommand.toJSON()] }
   );
 
   console.log("Registered /buckshot commands.");
