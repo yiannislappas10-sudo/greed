@@ -192,3 +192,9 @@ Do **not** commit `.env` or paste your Discord bot token into GitHub.
 ## Important production note
 
 Game and challenge state is persisted, but private Discord ticket channels are still Discord resources. If a server administrator manually deletes a ticket channel while a saved game exists, that saved game becomes unreachable until it is cleaned up with admin tooling or a future automatic cleanup job.
+
+
+### Admin dashboard
+
+Server administrators can use `/dashboard` to control Buckshot settings from a Components V2 panel. It covers wagering, wager limits, turn timeout, the challenge channel, and active-match visibility. The dashboard is permission-checked in the bot as well as in the command registration.
+
