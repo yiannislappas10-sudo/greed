@@ -1726,6 +1726,19 @@ async function closeGameTicket(interaction, game) {
     });
   }
 
+  if (!game.finished && game.wager && game.wagerId && game.wagerStatus === "locked") {
+    try {
+      await refundBuckshotWager(game.wagerId);
+      game.wagerStatus = "refunded";
+    } catch (error) {
+      console.error("Failed to refund Envy wager before closing ticket", game.wagerId, error);
+      return interaction.reply({
+        content: "The ticket cannot be closed yet because the Envy wager could not be refunded. Please try again in a moment.",
+        flags: MessageFlags.Ephemeral
+      });
+    }
+  }
+
   activeUsers.delete(game.challengerId);
   activeUsers.delete(game.targetId);
   clearTurnTimer(game.id);
