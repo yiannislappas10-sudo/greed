@@ -432,17 +432,12 @@ const ultimateScenes=[
 "DRAGS YOU TO SCP-???'S ROOM, AND THE FILE IS JUST A PHOTO OF YOUR LAST BRAIN CELL",
 "DRAGS YOU INTO A CLASS-D ORIENTATION PRESENTATION THAT HAS NO LAST SLIDE",
 "DRAGS YOU TO A SECRET LAB WHERE THE EXPERIMENT IS 100% PURE CRINGE",
-"Dfunction makeUltimateReply(target){
- const isNormal=Math.random()<0.68;
- const scene=pickUltimate(isNormal?ultimateNormalScenes:ultimateScenes);
- let result="*"+scene+"*\\n\\n<@"+target.id+"> has been selected for the Ultimate experience.";
- if(Math.random()<(isNormal?0.18:0.48))result+="\\n\\n"+pickUltimate(ultimateModifiers);
- const roll=Math.random();
- const egg=ultimateEasterEggs.find(e=>roll<e.chance);
- if(egg)result+=egg.message;
- if(!isNormal||Math.random()<0.35)result+="\\n\\n*"+pickUltimate(ultimateAftermaths)+"*";
- return result.slice(0,1950);
-}C'S FIRST-CLASS DINNER, AND YOU ARE IN CHARGE OF THE ICEBERG",
+"DRAGS YOU INTO A FOUNDATION ELEVATOR THAT KEEPS ANNOUNCING 'UNAUTHORIZED VIBES DETECTED'",
+"DRAGS YOU TO A PARANORMAL INVESTIGATION WHERE THE GHOST IS AFK",
+"DRAGS YOU INTO PHASMOPHOBIA WITH NO FLASHLIGHT, NO SANITY, AND A TEAMMATE WHO SAYS 'IT'S FRIENDLY'",
+"DRAGS YOU TO FINDING CAESAR, BUT THE CLUES ARE ALL WRITTEN IN WINGDINGS",
+"DRAGS YOU TO A VINCENT VAN GOGH EXHIBITION WHERE EVERY PORTRAIT HAS YOUR FACE",
+"DRAGS YOU INTO THE TITANIC'S FIRST-CLASS DINNER, AND YOU ARE IN CHARGE OF THE ICEBERG",
 "DRAGS YOU TO RESIDENT EVIL TO PICK UP GROCERIES FOR SOMEONE WHO DOESN'T PAY YOU BACK",
 "DRAGS YOU INTO THE LAST OF US, BUT YOUR ONLY WEAPON IS A SPOON",
 "DRAGS YOU TO THE NAPOLEONIC WARS TO DELIVER A VERY IMPORTANT MEMO THAT JUST SAYS 'LOL'",
@@ -557,13 +552,14 @@ const ultimateEasterEggs=[
 ];
 function pickUltimate(list){return list[Math.floor(Math.random()*list.length)]}
 function makeUltimateReply(target){
- const scene=pickUltimate(ultimateScenes);
+ const isNormal=Math.random()<0.68;
+ const scene=pickUltimate(isNormal?ultimateNormalScenes:ultimateScenes);
  let result="*"+scene+"*\n\n<@"+target.id+"> has been selected for the Ultimate experience.";
- if(Math.random()<0.48)result+="\n\n"+pickUltimate(ultimateModifiers);
+ if(Math.random()<(isNormal?0.18:0.48))result+="\n\n"+pickUltimate(ultimateModifiers);
  const roll=Math.random();
  const egg=ultimateEasterEggs.find(e=>roll<e.chance);
  if(egg)result+=egg.message;
- result+="\n\n*"+pickUltimate(ultimateAftermaths)+"*";
+ if(!isNormal||Math.random()<0.35)result+="\n\n*"+pickUltimate(ultimateAftermaths)+"*";
  return result.slice(0,1950);
 }
 const cmd=new SlashCommandBuilder().setName("greed").setDescription("Manage Greed TikTok feeds.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
