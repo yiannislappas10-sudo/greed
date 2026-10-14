@@ -2,6 +2,43 @@ require("dotenv").config();
 const {Client,GatewayIntentBits,REST,Routes,SlashCommandBuilder,PermissionFlagsBits,ChannelType,EmbedBuilder,ActionRowBuilder,ButtonBuilder,ButtonStyle,ModalBuilder,TextInputBuilder,TextInputStyle,ChannelSelectMenuBuilder,RoleSelectMenuBuilder,MessageFlags}=require("discord.js");
 const {Pool}=require("pg");const client=new Client({intents:[GatewayIntentBits.Guilds]});
 const pool=process.env.DATABASE_URL?new Pool({connectionString:process.env.DATABASE_URL,ssl:process.env.DATABASE_SSL==="true"?{rejectUnauthorized:false}:undefined}):null;const feeds=new Map();const base="✦ PROJECT HAVEN — NEW TIKTOK\n\n{caption}\n\n↗ Watch the video: {link}";
+const ultimateCmd=new SlashCommandBuilder().setName("ultimate").setDescription("Unleash a completely unhinged Project Haven drag.")
+.addUserOption(o=>o.setName("target").setDescription("Who gets dragged into the chaos?").setRequired(false));
+const ultimateScenes=[
+"DRAGS YOU TO HELL, FULL OF SAINTLESS'S MIMIC, 100 CRINGE GACHA VIDEOS, UWU CATS, WANNA-BE BAD BOYS, JOKER FROM GOTHAM WITH PEPPER SPRAY, EX-COUPLES GACHA, NINJA GO, ASPEN'S EARTHQUAKE, GY THE COOKER IN AN APRON, CUPCAKE THE DOG, A PET SPIDER, AND MIMICS OF EVERY HAVEN INSTITUTE PERSON TRYING TO STEAL YOUR FOOD",
+"DRAGS YOU TO A WELL FROM THE RING",
+"DRAGS AND THROWS YOU INTO WARDENBORIS'S LIVING ROOM",
+"DRAGS AND THROWS YOU INTO GY'S WINDOW",
+"DRAGS YOU TO OUTER SPACE",
+"DRAGS YOU INTO A 67-FT POOL THAT'S 100 FT WIDE AND 100 FT LONG",
+"DRAGS YOU TO ASPEN'S KITCHEN",
+"DRAGS YOU TO PHASMOPHOBIA",
+"DRAGS YOU TO FINDING CAESAR",
+"DRAGS YOU TO VINCENT VAN GOGH",
+"DRAGS YOU TO THE TITANIC",
+"DRAGS YOU TO SCHOOL — DAY SCHOOL AND NIGHT SCHOOL",
+"DRAGS YOU TO RESIDENT EVIL",
+"DRAGS YOU TO THE LAST OF US",
+"DRAGS YOU TO THE NAPOLEONIC WARS",
+"DRAGS YOU TO MORGANITE'S KITCHEN",
+"DRAGS YOU TO AN SCP FOUNDATION D-CLASS CELL",
+"DRAGS YOU INTO A TUB OF SNAKES",
+"DRAGS YOU TO THE FEMBOY FURRY TAVERN",
+"DRAGS YOU TO BRAINROT HAVEN",
+"DRAGS YOU TO GODZILLA",
+"DRAGS YOU TO FINDING NEMO",
+"DRAGS YOU TO THE 6,700-FT-DEEP OCEAN",
+"DRAGS YOU TO FLORIDA",
+"DRAGS YOU TO CANADA",
+"DRAGS YOU TO GY'S MYSTERIOUS ROOMS",
+"DRAGS YOU TO MIKE'S PLUSH MIKAEL WAZOWSKI",
+"DRAGS AND THROWS YOU INTO A BLACK HOLE",
+"DRAGS YOU TO PG'S BATHROOM",
+"DRAGS YOU TO THE ETERNAL VOID",
+"DRAGS YOU TO WW3",
+"DRAGS YOU TO THE TERMINATOR",
+"DRAGS YOU TO SMILING BATMAN"
+];
 const cmd=new SlashCommandBuilder().setName("greed").setDescription("Manage Greed TikTok feeds.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
 .addSubcommand(s=>s.setName("dashboard").setDescription("Open TikTok Feed Manager."))
 .addSubcommand(s=>s.setName("add").setDescription("Monitor a TikTok account.").addStringOption(o=>o.setName("account").setDescription("Username or profile URL").setRequired(true)).addChannelOption(o=>o.setName("channel").setDescription("Posting channel").addChannelTypes(ChannelType.GuildText,ChannelType.GuildAnnouncement).setRequired(true)))
