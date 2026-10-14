@@ -2,8 +2,45 @@ require("dotenv").config();
 const {Client,GatewayIntentBits,REST,Routes,SlashCommandBuilder,PermissionFlagsBits,ChannelType,EmbedBuilder,ActionRowBuilder,ButtonBuilder,ButtonStyle,ModalBuilder,TextInputBuilder,TextInputStyle,ChannelSelectMenuBuilder,RoleSelectMenuBuilder,MessageFlags}=require("discord.js");
 const {Pool}=require("pg");const client=new Client({intents:[GatewayIntentBits.Guilds]});
 const pool=process.env.DATABASE_URL?new Pool({connectionString:process.env.DATABASE_URL,ssl:process.env.DATABASE_SSL==="true"?{rejectUnauthorized:false}:undefined}):null;const feeds=new Map();const base="✦ PROJECT HAVEN — NEW TIKTOK\n\n{caption}\n\n↗ Watch the video: {link}";
+const dragAllowedUsers=new Set(["1060611183259955322","1441030741998702592"]);
+const dragCooldowns=new Map();
+const dragCmd=new SlashCommandBuilder().setName("drag").setDescription("Drag someone to a random place.")
+.addUserOption(o=>o.setName("target").setDescription("Who gets dragged?").setRequired(false));
 const ultimateCmd=new SlashCommandBuilder().setName("ultimate").setDescription("Unleash a completely unhinged Project Haven drag.")
 .addUserOption(o=>o.setName("target").setDescription("Who gets dragged into the chaos?").setRequired(false));
+const ultimateLongScenes=[
+  "DRAGS YOU TO HELL FULL WITH SAINTLESS'S MIMIC AND 100 CRINGE GACHA VIDEOS AND UWU CATS AND WANNABE BAD BOYS AND JOKER FROM GOTHAM WITH PEPPER SPRAY AND EX-COUPLES GACHA, WHILE JUMP UP, KICK BACK, WHIP AROUND AND SPIN PLAYS ON LOOP, AND ASPEN'S EARTHQUAKE SHAKES THE FLOOR, GY IS THE COOKER WEARING AN APRON, CUPCAKE THE DOG IS THE SECURITY GUARD, THE PET SPIDER OWNS THE PLACE, AND MIMICS OF EVERY HAVEN INSTITUTE PERSON ARE TRYING TO STEAL YOUR FOOD",
+  "DRAGS YOU INTO THE BACKROOMS WHERE EVERY HALLWAY PLAYS A DIFFERENT CRINGE GACHA EDIT, SAINTLESS'S MIMIC IS YOUR TOUR GUIDE, EVERY EXIT LEADS TO ANOTHER EXIT, AND THE VENDING MACHINE ONLY SELLS COLD SPAGHETTI",
+  "DRAGS YOU TO GY'S KITCHEN DURING THE APOCALYPSE, WHERE GY IS WEARING THE LEGENDARY APRON, CUPCAKE HAS BEEN PROMOTED TO HEAD CHEF, THE PET SPIDER IS REVIEWING THE FOOD, AND EVERY MIMIC IN HAVEN INSTITUTE IS HIDING INSIDE THE FRIDGE WAITING TO STEAL YOUR LEFTOVERS",
+  "DRAGS YOU TO A 100-HOUR GACHA MARATHON WHERE EVERY CHARACTER IS A WANNABE BAD BOY, THE JOKER IS THE HOST, SAINTLESS'S MIMIC CONTROLS THE REMOTE, AND THE ONLY WAY OUT IS TO WATCH ONE MORE EDIT",
+  "DRAGS YOU TO ASPEN'S EARTHQUAKE, WHERE THE GROUND SHAKES SO HARD THAT THE MOON FALLS INTO THE POOL, GY'S APRON FLIES INTO ORBIT, CUPCAKE BECOMES MAYOR, AND THE PET SPIDER FILES A COMPLAINT AGAINST GRAVITY",
+  "DRAGS YOU ABOARD THE TITANIC BUT THE ICEBERG IS A GIANT CUPCAKE, THE CAPTAIN IS SMILING BATMAN, THE BAND ONLY PLAYS NINJA GO, AND EVERYONE IS ARGUING OVER WHO STOLE THE LAST CHICKEN NUGGET",
+  "DRAGS YOU TO THE SCP FOUNDATION D-CLASS CELL WHERE THE DOOR IS A MIMIC, THE GUARD IS A TALKING CAT, THE INTERCOM PLAYS UWU REMIXES, AND YOUR ESCAPE PLAN HAS BEEN REJECTED BY A SPIDER WEARING A TINY TIE",
+  "DRAGS YOU TO FLORIDA DURING A CATEGORY 12 GOOSE HURRICANE, WHERE ALLIGATORS RUN THE GOVERNMENT, THE POLICE ARE THREE RACCOONS IN A TRENCH COAT, AND YOUR ONLY TRANSPORT IS A SHOPPING CART WITH ONE BROKEN WHEEL",
+  "DRAGS YOU TO THE 6,700-FT-DEEP OCEAN WITH FINDING NEMO PLAYING AT FULL VOLUME, GODZILLA IS YOUR LIFEGUARD, THE FISH HAVE STARTED A UNION, AND A CRAB HAS JUST CHARGED YOU RENT FOR THE SEAFLOOR",
+  "DRAGS YOU TO SCHOOL ON DAY AND NIGHT SHIFT AT THE SAME TIME, EVERY TEACHER IS A BOSS FIGHT, YOUR MATH TEST HAS 900 PAGES, THE PRINCIPAL IS SMILING BATMAN, AND THE BELL RINGS EVERY TIME YOU TRY TO BLINK",
+  "DRAGS YOU TO RESIDENT EVIL WHERE THE ZOMBIES ARE ALL TRYING TO SELL YOU CRYPTO, THE FINAL BOSS IS A GIANT UNCOOKED LASAGNA, THE SAVE ROOM IS RUN BY GY IN HIS APRON, AND CUPCAKE HAS THE ONLY WORKING KEYCARD",
+  "DRAGS YOU TO THE LAST OF US WHERE THE CLICKERS HAVE DISCOVERED VOICE CHAT, THE INFECTION IS 90% BRAINROT, YOUR HORSE HAS LEFT THE GROUP CHAT, AND EVERY SUPPLY CRATE CONTAINS ONE SINGLE SPOON",
+  "DRAGS YOU TO THE NAPOLEONIC WARS WHERE NAPOLEON IS PLAYING ROBLOX, THE CAVALRY IS RIDING SHOPPING TROLLEYS, THE CANNONS FIRE CONFETTI, AND THE ENTIRE ARMY HAS STOPPED TO ARGUE ABOUT A GACHA SHIP",
+  "DRAGS YOU TO MORGANITE'S KITCHEN WHERE EVERY PAN IS CURSED, THE OVEN WHISPERS YOUR SEARCH HISTORY, THE FRIDGE IS FULL OF MIMICS, AND A SINGLE CUPCAKE HAS BEEN DECLARED A NATIONAL TREASURE",
+  "DRAGS YOU TO THE FEMBOY FURRY TAVERN WHERE THE BARTENDER IS A TALKING WOLF, THE JUKEBOX ONLY PLAYS NINJA GO, EVERY TABLE IS A SIDE QUEST, AND THE BILL IS PAID IN 400 CRINGE EDITS",
+  "DRAGS YOU TO BRAINROT HAVEN WHERE EVERYONE SPEAKS ONLY IN MEMES, THE FLOOR IS MADE OF SKIBIDI TOILETS, THE MAYOR IS A JPEG OF SMILING BATMAN, AND YOUR LAST TWO BRAIN CELLS HAVE FILED FOR RETIREMENT",
+  "DRAGS YOU INTO A BLACK HOLE WHERE TIME IS BACKWARDS, YOUR HOMEWORK IS DUE YESTERDAY, YOUR CLONE IS ALREADY MAD AT YOU, AND THE EVENT HORIZON IS JUST GY SHOUTING 'WHO TOUCHED MY FOOD?'",
+  "DRAGS YOU TO THE ETERNAL VOID WHERE A SINGLE OFFICE CHAIR SPINS FOREVER, THE PET SPIDER HAS BECOME A COSMIC GOD, CUPCAKE IS THE ONLY LIGHT SOURCE, AND THE VOID KEEPS ASKING IF YOU HAVE TRIED TURNING YOURSELF OFF AND ON AGAIN",
+  "DRAGS YOU TO WW3 BUT ALL SIDES HAVE AGREED TO SETTLE THE CONFLICT WITH MARIO KART, THE TANKS ARE DECORATED WITH CAT STICKERS, THE GENERALS ARE DOING THE NINJA GO DANCE, AND THE WINNER GETS THE LAST PIZZA SLICE",
+  "DRAGS YOU TO GY'S MYSTERIOUS ROOMS WHERE EACH DOOR LEADS TO A DIFFERENT VERSION OF GY'S KITCHEN, ONE GY IS A CHEF, ONE GY IS A DETECTIVE, ONE GY IS A MIMIC, AND ALL OF THEM ACCUSE YOU OF STEALING THEIR APRON",
+  "DRAGS YOU TO MIKE'S PLUSH MIKAEL WAZOWSKI EMPIRE WHERE EVERY PLUSHIE HAS A JOB, THE CEO IS A VERY SMALL MONSTER, THE ACCOUNTANT IS A SPIDER, AND YOU HAVE BEEN SUED FOR LOOKING AT THE MERCHANDISE WITHOUT PERMISSION",
+  "DRAGS YOU TO PHASMOPHOBIA WHERE THE GHOST IS AFK, THE EMF READER IS A POTATO, YOUR TEAMMATE HAS LEFT THE VAN, AND THE ONLY THING HAUNTING THE HOUSE IS A VERY ANGRY ROOSTER WITH ADMIN PERMISSIONS",
+  "DRAGS YOU TO FINDING CEASER WHERE EVERY CLUE IS A BADLY CROPPED SCREENSHOT, EVERY WITNESS IS A MIMIC, THE DETECTIVE IS A CAT WITH SUNGLASSES, AND THE FINAL ANSWER IS SOMEHOW STILL 'CHECK THE KITCHEN'",
+  "DRAGS YOU TO VINCENT VAN GOGH'S ART STUDIO WHERE THE PAINTINGS ROAST YOUR OUTFIT, THE SUNFLOWERS HAVE A GROUP CHAT, THE STARRY NIGHT IS A DISCO FLOOR, AND YOUR PORTRAIT HAS BEEN RATED 2/10 BY A JUDGMENTAL SPIDER",
+  "DRAGS YOU TO OUTER SPACE WHERE THE ALIENS HAVE DISCOVERED GACHA, THE UFO HAS A CHECK ENGINE LIGHT, SATURN'S RINGS ARE MADE OF ONION RINGS, AND EARTH HAS BEEN MUTED FOR SPAMMING THE GALACTIC GROUP CHAT",
+  "DRAGS YOU TO CANADA IN A BLIZZARD WHERE A MOOSE IS YOUR TAXI DRIVER, THE MAPLE SYRUP IS SENTIENT, EVERYONE APOLOGIZES BEFORE ATTACKING, AND YOUR WINTER COAT HAS BEEN CLAIMED BY A RACCOON",
+  "DRAGS YOU TO THE WELL FROM THE RING WHERE THE TV HAS 900 NOTIFICATIONS, THE GHOST IS TRYING TO FIX THE WIFI, THE CURSED VIDEO IS JUST A 14-HOUR GACHA COMPILATION, AND THE ONLY WAY TO SURVIVE IS TO UNPLUG THE ROUTER",
+  "DRAGS YOU TO THE TERMINATOR TIMELINE WHERE EVERY ROBOT IS STUCK IN A CAPTCHA, THE HUMAN RESISTANCE IS LED BY CUPCAKE, THE TIME MACHINE ONLY GOES TO MONDAY, AND THE FINAL BOSS HAS FORGOTTEN ITS OWN PASSWORD",
+  "DRAGS YOU TO GODZILLA'S FAMILY DINNER WHERE THE TABLE IS A CITY BLOCK, THE SOUP IS A SWIMMING POOL, EVERYONE IS YELLING OVER THE TV, AND YOU HAVE BEEN ASKED TO BRING 900 TACOS FOR THE NEXT COURSE",
+  "DRAGS YOU TO A TUB OF SNAKES WHERE EVERY SNAKE HAS A DIFFERENT OPINION ABOUT YOUR LIFE CHOICES, ONE IS A THERAPIST, ONE IS A LAWYER, AND THE SMALLEST ONE HAS JUST BANNED YOU FROM THE SERVER",
+  "DRAGS YOU TO THE HAVEN INSTITUTE FOOD COURT WHERE EVERY MIMIC IS DISGUISED AS A SNACK, GY IS GUARDING THE FRIDGE IN HIS APRON, CUPCAKE IS SNIFFING EVERY PLATE, AND YOUR SANDWICH HAS BEEN ELECTED HEAD OF SECURITY"
+];
 const ultimateNormalScenes=[
   "DRAGS YOU TO A WELL FROM THE RING",
   "DRAGS YOU TO WARDENBORIS'S LIVING ROOM",
@@ -551,17 +588,20 @@ const ultimateEasterEggs=[
 {chance:0.04,message:"\n\n**[RARE LOOT]** You found one (1) legendary brain cell. It immediately logged off."}
 ];
 function pickUltimate(list){return list[Math.floor(Math.random()*list.length)]}
+function makeDragReply(target){return "*"+pickUltimate(ultimateNormalScenes)+"*\n\n<@"+target.id+"> has been dragged."}
 function makeUltimateReply(target){
- const isNormal=Math.random()<0.68;
- const scene=pickUltimate(isNormal?ultimateNormalScenes:ultimateScenes);
- let result="*"+scene+"*\n\n<@"+target.id+"> has been selected for the Ultimate experience.";
- if(Math.random()<(isNormal?0.18:0.48))result+="\n\n"+pickUltimate(ultimateModifiers);
- const roll=Math.random();
- const egg=ultimateEasterEggs.find(e=>roll<e.chance);
- if(egg)result+=egg.message;
- if(!isNormal||Math.random()<0.35)result+="\n\n*"+pickUltimate(ultimateAftermaths)+"*";
- return result.slice(0,1950);
+ const scene=pickUltimate(ultimateLongScenes);
+ return "*"+scene+"*\n\n<@"+target.id+"> has been selected for ULTIMATE. "+pickUltimate(ultimateAftermaths);
 }
+function checkDragAccessAndCooldown(i,commandName,cooldownMs){
+ if(!dragAllowedUsers.has(i.user.id))return "You are not allowed to use this command.";
+ const key=commandName+":"+i.user.id;
+ const now=Date.now(),until=dragCooldowns.get(key)||0;
+ if(now<until){const remaining=until-now;const mins=Math.ceil(remaining/60000);return "Cooldown active. Try again in "+(mins>=60?Math.floor(mins/60)+"h "+mins%60+"m":mins+"m")+"."}
+ dragCooldowns.set(key,now+cooldownMs);
+ return null;
+}
+
 const cmd=new SlashCommandBuilder().setName("greed").setDescription("Manage Greed TikTok feeds.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
 .addSubcommand(s=>s.setName("dashboard").setDescription("Open TikTok Feed Manager."))
 .addSubcommand(s=>s.setName("add").setDescription("Monitor a TikTok account.").addStringOption(o=>o.setName("account").setDescription("Username or profile URL").setRequired(true)).addChannelOption(o=>o.setName("channel").setDescription("Posting channel").addChannelTypes(ChannelType.GuildText,ChannelType.GuildAnnouncement).setRequired(true)))
@@ -582,9 +622,15 @@ function scheduleNextCheck(){if(pollTimer)clearTimeout(pollTimer);const wait=api
 async function items(u){if(!process.env.SOCIFLUX_API_KEY)throw Error("SOCIFLUX_API_KEY is not set in Railway.");const url=new URL("https://api.sociflux.com/v1/tiktok/posts");url.searchParams.set("username",u);url.searchParams.set("count","10");const r=await fetch(url,{headers:{Authorization:"Bearer "+process.env.SOCIFLUX_API_KEY},signal:AbortSignal.timeout(20000)});const remaining=r.headers.get("X-Quota-Remaining");if(remaining!==null&&Number.isFinite(Number(remaining))&&Number(remaining)<=0)apiQuotaExhaustedUntil=monthlyResetUtc();let data;try{data=await r.json()}catch{throw Error("Sociflux returned invalid JSON (HTTP "+r.status+").")}if(!r.ok)throw Error("Sociflux HTTP "+r.status+(data.message?": "+data.message:""));if(data.error)throw Error("Sociflux: "+(typeof data.error==="string"?data.error:JSON.stringify(data.error)));const list=(Array.isArray(data.data)?data.data:[]).map(v=>{const videoId=String(v.aweme_id||v.video_id||v.id||"");const handle=v.author&&v.author.unique_id||u;const link=v.share_url||(videoId?"https://www.tiktok.com/@"+handle+"/video/"+videoId:"");return {id:videoId||link,link,caption:v.desc||v.title||"New TikTok video"}}).filter(v=>v.id&&(v.link.startsWith("https://")||v.link.startsWith("http://"))).slice(0,10);return list}
 async function check(f){if(!f.enabled||apiQuotaExhaustedUntil>Date.now())return;try{const list=await items(f.username);if(pool){const n=await pool.query("SELECT COUNT(*)::int n FROM greed_tiktok_posts WHERE feed_id=$1",[f.id]);if(!n.rows[0].n){for(const v of list)await pool.query("INSERT INTO greed_tiktok_posts(feed_id,video_id) VALUES($1,$2) ON CONFLICT DO NOTHING",[f.id,v.id]);return}}else if(!f.seen){f.seen=new Set(list.map(v=>v.id));return}const ch=await client.channels.fetch(f.channel_id).catch(()=>null);if(!ch||!ch.isTextBased())return;for(const v of list.reverse()){let old=false;if(pool)old=(await pool.query("SELECT 1 FROM greed_tiktok_posts WHERE feed_id=$1 AND video_id=$2",[f.id,v.id])).rowCount>0;else old=f.seen.has(v.id);if(old)continue;await ch.send({embeds:[new EmbedBuilder().setColor(0x111111).setAuthor({name:"GREED · TIKTOK FEED"}).setDescription(fill(f,v.caption,v.link)).setFooter({text:"TikTok · @"+f.username}).setURL(v.link)],...ping(f)});if(pool)await pool.query("INSERT INTO greed_tiktok_posts(feed_id,video_id) VALUES($1,$2) ON CONFLICT DO NOTHING",[f.id,v.id]);else f.seen.add(v.id)}}catch(e){console.error("Feed error @"+f.username+": "+e.message)}}
 async function checkAll(){if(apiQuotaExhaustedUntil>Date.now()){console.log("Sociflux monthly quota is exhausted; feed checks resume next month (UTC).");return}if(apiQuotaExhaustedUntil)apiQuotaExhaustedUntil=0;if(!process.env.SOCIFLUX_API_KEY){console.error("SOCIFLUX_API_KEY is missing; feed checks are paused.");return}for(const f of feeds.values())await check(f)}
-client.once("ready",async()=>{console.log("Greed TikTok Feed online as "+client.user.tag);try{if(process.env.CLIENT_ID&&process.env.GUILD_ID){await new REST({version:"10"}).setToken(process.env.BOT_TOKEN).put(Routes.applicationGuildCommands(process.env.CLIENT_ID,process.env.GUILD_ID),{body:[cmd.toJSON(),ultimateCmd.toJSON()]});console.log("Registered /greed and /ultimate")}await init();await checkAll();scheduleNextCheck()}catch(e){console.error(e)}});
+client.once("ready",async()=>{console.log("Greed TikTok Feed online as "+client.user.tag);try{if(process.env.CLIENT_ID&&process.env.GUILD_ID){await new REST({version:"10"}).setToken(process.env.BOT_TOKEN).put(Routes.applicationGuildCommands(process.env.CLIENT_ID,process.env.GUILD_ID),{body:[cmd.toJSON(),dragCmd.toJSON(),ultimateCmd.toJSON()]});console.log("Registered /greed, /drag and /ultimate")}await init();await checkAll();scheduleNextCheck()}catch(e){console.error(e)}});
 client.on("interactionCreate",async i=>{try{
-if(i.isChatInputCommand()&&i.commandName==="ultimate"){const target=i.options.getUser("target")||i.user;return i.reply({content:makeUltimateReply(target),allowedMentions:{users:[target.id]}})}
+if(i.isChatInputCommand()&&(i.commandName==="drag"||i.commandName==="ultimate")){
+ const isUltimate=i.commandName==="ultimate";
+ const error=checkDragAccessAndCooldown(i,i.commandName,isUltimate?3*60*60*1000:9*60*1000);
+ if(error)return i.reply({content:error,flags:MessageFlags.Ephemeral});
+ const target=i.options.getUser("target")||i.user;
+ return i.reply({content:isUltimate?makeUltimateReply(target):makeDragReply(target),allowedMentions:{users:[target.id]}});
+}
 if(i.isChatInputCommand()&&i.commandName==="greed"){if(!admin(i))return i.reply({content:"Manage Server permission required.",flags:MessageFlags.Ephemeral});const sub=i.options.getSubcommand(),list=[...feeds.values()].filter(f=>f.guild_id===i.guildId);
 if(sub==="feeds")return i.reply({content:list.length?list.map(f=>"• @"+f.username+" → <#"+f.channel_id+"> · "+(f.enabled?"Enabled":"Paused")).join("\n"):"No feeds yet. Use /greed add.",flags:MessageFlags.Ephemeral});
 if(sub==="dashboard")return i.reply({content:list.length?"Manage a feed with /greed manage account:username:\n"+list.map(f=>"• @"+f.username).join("\n"):"No feeds yet. Use /greed add.",flags:MessageFlags.Ephemeral});
